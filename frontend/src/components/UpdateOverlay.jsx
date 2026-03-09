@@ -1,7 +1,7 @@
+import { useState, useEffect, useRef } from 'react';
 // =============================================================================
 //  MediaFlow · UpdateOverlay.jsx
 // =============================================================================
-import { useState, useEffect, useRef } from 'react';
 
 export default function UpdateOverlay() {
     const [updateData, setUpdateData] = useState(null);

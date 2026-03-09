@@ -184,7 +184,7 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.2.0${RESET}"
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.2.1${RESET}"
   echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Overseerr · Tdarr"
   echo ""
 }

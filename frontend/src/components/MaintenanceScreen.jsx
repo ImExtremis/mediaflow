@@ -1,7 +1,7 @@
+import { useState, useEffect } from 'react';
 // =============================================================================
 //  MediaFlow · MaintenanceScreen.jsx
 // =============================================================================
-import { useState, useEffect } from 'react';
 
 export default function MaintenanceScreen() {
     const [isMaintenance, setIsMaintenance] = useState(false);

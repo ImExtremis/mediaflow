@@ -40,7 +40,7 @@ app.use((req, res, next) => {
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.2.0' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.2.1' });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
