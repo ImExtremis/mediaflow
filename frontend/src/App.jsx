@@ -123,7 +123,7 @@ function Sidebar() {
                 MediaFlow {version}
                 <br />
                 <a
-                    href="https://github.com/your-org/mediaflow"
+                    href="https://github.com/ImExtremis/mediaflow.git"
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ color: 'var(--accent-primary)', opacity: 0.8 }}
