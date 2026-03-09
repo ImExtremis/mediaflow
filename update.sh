@@ -161,16 +161,26 @@ docker compose down --timeout 30
 success "Containers stopped."
 
 # -----------------------------------------------------------------------------
-# STEP 9: Start containers
+# STEP 9: Rebuild custom images
 # -----------------------------------------------------------------------------
-info "Step 9: Starting containers..."
+info "Step 9: Rebuilding frontend and backend images..."
+if ! docker compose build --no-cache frontend backend; then
+  error "Rebuilding frontend and backend failed."
+  auto_rollback
+fi
+success "Frontend and backend rebuilt successfully."
+
+# -----------------------------------------------------------------------------
+# STEP 10: Start containers
+# -----------------------------------------------------------------------------
+info "Step 10: Starting containers..."
 docker compose up -d
 success "Containers started."
 
 # -----------------------------------------------------------------------------
-# STEP 10: Health verification
+# STEP 11: Health verification
 # -----------------------------------------------------------------------------
-info "Step 10: Verifying container health..."
+info "Step 11: Verifying container health..."
 health_retries=20
 all_healthy=false
 
@@ -178,7 +188,6 @@ while (( health_retries-- > 0 )); do
   # Check if any container is Exited or Restarting
   unhealthy=$(docker compose ps --format json | grep -E '"State":"(restarting|exited|dead)"' || true)
   if [[ -z "$unhealthy" ]]; then
-    # further checks can be done, but simply checking they remain Up is a basic test
     all_healthy=true
     break
   fi
@@ -187,15 +196,31 @@ done
 
 if ! $all_healthy; then
   error "Some containers failed to start or remain healthy."
-  # Trigger the trap
-  false 
+  false # Trigger the trap
 fi
-success "All containers are healthy."
+success "All containers are running stably."
+
+info "Verifying Frontend Dashboard..."
+frontend_ready=false
+fe_retries=30
+while (( fe_retries-- > 0 )); do
+  if curl -sf http://localhost:${DASHBOARD_PORT:-8080} >/dev/null; then
+    frontend_ready=true
+    break
+  fi
+  sleep 1
+done
+
+if ! $frontend_ready; then
+  error "Frontend failed to respond after rebuild."
+  false # Trigger the trap
+fi
+success "Frontend is successfully responding."
 
 # -----------------------------------------------------------------------------
-# STEP 11: Update the VERSION file
+# STEP 12: Update the VERSION file
 # -----------------------------------------------------------------------------
-info "Step 11: Updating VERSION file..."
+info "Step 12: Updating VERSION file..."
 # Read the new version from the git repo if available
 if [[ -f "VERSION" ]]; then
   NEW_VERSION=$(cat VERSION | tr -d '\r')
@@ -205,16 +230,16 @@ fi
 success "Version is now $NEW_VERSION"
 
 # -----------------------------------------------------------------------------
-# STEP 12: Disable maintenance mode
+# STEP 13: Disable maintenance mode
 # -----------------------------------------------------------------------------
-info "Step 12: Disabling maintenance mode..."
+info "Step 13: Disabling maintenance mode..."
 rm -f ./state/maintenance
 success "Maintenance mode disabled."
 
 # -----------------------------------------------------------------------------
-# STEP 13: Print full post-update health report
+# STEP 14: Print full post-update health report
 # -----------------------------------------------------------------------------
-info "Step 13: Final Report"
+info "Step 14: Final Report"
 echo ""
 echo -e "${BOLD}${GREEN}======================================================================${RESET}"
 echo -e "${BOLD}${GREEN}✔ MediaFlow Update Successful!${RESET}"
@@ -234,6 +259,11 @@ while read -r line; do
     echo -e "  ${RED}✘${RESET} $c_name ($c_state)"
   fi
 done <<< "$containers"
+
+echo ""
+echo -e "${BOLD}Rebuilt Images:${RESET}"
+docker images mediaflow-frontend mediaflow-backend --format "  {{.Repository}}:{{.Tag}} — {{.ID}} — built {{.CreatedSince}}" || true
+
 
 echo ""
 echo -e "${GREEN}All data paths verified writable.${RESET}"
