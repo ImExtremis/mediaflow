@@ -33,8 +33,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - sonarr_config:/config
@@ -56,8 +56,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - radarr_config:/config
@@ -79,8 +79,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - prowlarr_config:/config
@@ -102,8 +102,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
       - WEBUI_PORT=8080
       - TORRENTING_PORT=6881
@@ -132,8 +132,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - jellyfin_config:/config
@@ -158,8 +158,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - bazarr_config:/config
@@ -181,8 +181,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - sonarr_anime_config:/config
@@ -204,8 +204,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
     volumes:
       - overseerr_config:/app/config
@@ -226,8 +226,8 @@ services:
     networks:
       - mediaflow_net
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
       - TZ=${TZ:-America/New_York}
       - serverIP=0.0.0.0
       - serverPort=8266
