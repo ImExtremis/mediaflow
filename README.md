@@ -85,6 +85,7 @@ The most common issue with the arr-stack is the "bad remote path mapping" error.
 - **Applying Fixes:** If you accidentally break permissions (e.g. by modifying files as `root`), you can run `bash fix-permissions.sh` at any time to repair the atomic permissions structure for the entire storage tree.
 - **Note:** If the server restarts or the network is interrupted, the Arr stack might break due to an IP change. For example, if you set the IP to 192.168.1.100 during setup and after a restart the IP changes to something else, the apps will stop working and will require manual fixes in all of the dashboards.
 - **qBittorrent:** There is a known bug where, after installation and setup, qBittorrent returns a failed authentication error when configuring any of the Arr stack apps (Sonarr, Radarr, etc.). To fix this issue, simply reboot your server after setting up qBittorrent. This bug is intentionally left unpatched in this app to demonstrate a classic IT solution: if something breaks, turn it off and turn it back on again. 😄
+
 ---
 
 ## 🎛️ MediaFlow Dashboard Features
