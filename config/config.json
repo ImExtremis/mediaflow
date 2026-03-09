@@ -1,0 +1,129 @@
+{
+  "content": {
+    "anime": true,
+    "movies": true,
+    "tvShows": true,
+    "documentaries": false
+  },
+  "quality": {
+    "profiles": [
+      "1080p"
+    ],
+    "available": [
+      "480p",
+      "720p",
+      "1080p",
+      "4K"
+    ]
+  },
+  "ratings": {
+    "allowed": [
+      "G",
+      "PG",
+      "PG-13"
+    ],
+    "available": [
+      "G",
+      "PG",
+      "PG-13",
+      "R",
+      "NR"
+    ]
+  },
+  "storage": {
+    "mediaPath": "/data/media",
+    "downloadPath": "/data/torrents",
+    "sonarrPath": "/data/media/tv",
+    "radarrPath": "/data/media/movies"
+  },
+  "speed": {
+    "downloadLimit": 0,
+    "uploadLimit": 0
+  },
+  "languages": {
+    "audio": [
+      "en"
+    ],
+    "subtitles": [
+      "en"
+    ],
+    "available": [
+      {
+        "code": "en",
+        "name": "English"
+      },
+      {
+        "code": "ja",
+        "name": "Japanese"
+      },
+      {
+        "code": "fr",
+        "name": "French"
+      },
+      {
+        "code": "de",
+        "name": "German"
+      },
+      {
+        "code": "es",
+        "name": "Spanish"
+      },
+      {
+        "code": "it",
+        "name": "Italian"
+      },
+      {
+        "code": "pt",
+        "name": "Portuguese"
+      },
+      {
+        "code": "zh",
+        "name": "Chinese"
+      },
+      {
+        "code": "ko",
+        "name": "Korean"
+      },
+      {
+        "code": "ar",
+        "name": "Arabic"
+      },
+      {
+        "code": "hi",
+        "name": "Hindi"
+      },
+      {
+        "code": "ru",
+        "name": "Russian"
+      }
+    ]
+  },
+  "indexers": [],
+  "services": {
+    "sonarr": {
+      "url": "http://sonarr:8989",
+      "apiKey": ""
+    },
+    "radarr": {
+      "url": "http://radarr:7878",
+      "apiKey": ""
+    },
+    "prowlarr": {
+      "url": "http://prowlarr:9696",
+      "apiKey": ""
+    },
+    "qbittorrent": {
+      "url": "http://qbittorrent:8080",
+      "username": "admin",
+      "password": "adminpassword"
+    },
+    "jellyfin": {
+      "url": "http://jellyfin:8096",
+      "apiKey": ""
+    }
+  },
+  "setup": {
+    "completed": false,
+    "version": "1.0.0"
+  }
+}

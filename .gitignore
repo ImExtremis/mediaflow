@@ -1,0 +1,33 @@
+# MediaFlow .gitignore
+
+# Environment files (contain secrets!)
+.env
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# Build output
+frontend/dist/
+frontend/.vite/
+
+# Backups (large archives)
+backups/
+*.tar.gz
+
+# App data (Docker volumes – managed separately)
+appdata/
+state/
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
