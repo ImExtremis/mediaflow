@@ -4,13 +4,16 @@
 #  One-command installer for the full MediaFlow arr-stack + dashboard
 # =============================================================================
 set -euo pipefail
-trap 'echo -e "\n[ERROR] Install failed at line $LINENO. Check logs/install.log for details." >&2' ERR
+
+# Global error trap — always show which line failed
+trap 'echo -e "\n[ERROR] Install failed at line $LINENO — command: $BASH_COMMAND" >&2; echo "[ERROR] Check ~/mediaflow/logs/install.log for details" >&2' ERR
 
 # Test if ANSI escape codes crash the terminal
 echo -e "\033[0m" >/dev/null 2>&1 || true
 
 # ─── Non-Interactive Fallback & Colors ─────────────────────────────────────────
-if [ -t 1 ] && [ -t 0 ] && [ "${TERM:-}" != "dumb" ]; then
+# Robust interactive detection — works correctly as root and via sudo
+if [[ -t 1 && "${TERM:-}" != "dumb" && "${TERM:-}" != "" ]]; then
   INTERACTIVE=true
   RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
   CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
@@ -73,16 +76,20 @@ render_header() {
   for ((i=0; i<filled; i++)); do bar+="█"; done
   for ((i=0; i<empty; i++)); do bar+="░"; done
 
-  # Save cursor, move home, redraw header, restore cursor
-  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput sc || true; fi
-  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cup 0 0 || true; fi
+  # Only use cursor movement in truly interactive terminals with tput support
+  if $INTERACTIVE && command -v tput >/dev/null 2>&1 && tput cup 0 0 >/dev/null 2>&1; then
+    tput sc || true
+    tput cup 0 0 || true
+  fi
   
   echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${RESET}"
   echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.2${RESET}                         ${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}    ${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}     Current Phase: %-31s ${CYAN}║${RESET}\n" "$CURRENT_PHASE_NAME ($CURRENT_PHASE of $TOTAL_PHASES)"
   echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${RESET}"
-  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput rc || true; fi
+  if $INTERACTIVE && command -v tput >/dev/null 2>&1 && tput rc >/dev/null 2>&1; then
+    tput rc || true
+  fi
 }
 
 phase_complete() {
@@ -170,7 +177,11 @@ stop_spinner() {
 
 # ─── Banner ──────────────────────────────────────────────────────────────────
 print_banner() {
-  echo -e "${BOLD}${CYAN}"
+  # Reset first to clear any lingering color codes
+  echo -e "${RESET}"
+  if $INTERACTIVE; then
+    echo -e "${BOLD}${CYAN}"
+  fi
   cat << 'EOF'
   ███╗   ███╗███████╗██████╗ ██╗ █████╗   ███████╗██╗      ██████╗ ██╗    ██╗
   ████╗ ████║██╔════╝██╔══██╗██║██╔══██╗  ██╔════╝██║     ██╔═══██╗██║    ██║
@@ -406,21 +417,21 @@ generate_api_keys() {
     SONARR_KEY=$(generate_key)
     sed -i "s/^SONARR_API_KEY=.*/SONARR_API_KEY=$SONARR_KEY/" "$env_file" || true
   else
-    SONARR_KEY=$(grep "^SONARR_API_KEY=" "$env_file" | cut -d= -f2)
+    SONARR_KEY=$(grep "^SONARR_API_KEY=" "$env_file" | cut -d= -f2 || true)
   fi
 
   if grep -q "^RADARR_API_KEY=$" "$env_file" 2>/dev/null; then
     RADARR_KEY=$(generate_key)
     sed -i "s/^RADARR_API_KEY=.*/RADARR_API_KEY=$RADARR_KEY/" "$env_file" || true
   else
-    RADARR_KEY=$(grep "^RADARR_API_KEY=" "$env_file" | cut -d= -f2)
+    RADARR_KEY=$(grep "^RADARR_API_KEY=" "$env_file" | cut -d= -f2 || true)
   fi
 
   if grep -q "^PROWLARR_API_KEY=$" "$env_file" 2>/dev/null; then
     PROWLARR_KEY=$(generate_key)
     sed -i "s/^PROWLARR_API_KEY=.*/PROWLARR_API_KEY=$PROWLARR_KEY/" "$env_file" || true
   else
-    PROWLARR_KEY=$(grep "^PROWLARR_API_KEY=" "$env_file" | cut -d= -f2)
+    PROWLARR_KEY=$(grep "^PROWLARR_API_KEY=" "$env_file" | cut -d= -f2 || true)
   fi
 
   success "API keys generated"
@@ -430,11 +441,6 @@ generate_api_keys() {
 setup_permissions() {
   render_header "Directory & Permissions Setup" || true
   info "Setting up complete TRaSH-compliant directory structure..."
-  
-  local TARGET_UID
-  TARGET_UID=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2)
-  local TARGET_GID
-  TARGET_GID=$(grep "^PGID=" "$INSTALL_DIR/.env" | cut -d= -f2)
   
   local dirs=(
     "$INSTALL_DIR/state"
@@ -474,15 +480,20 @@ setup_permissions() {
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
   fi
 
-  info "Applying ownership ($TARGET_UID:$TARGET_GID) and permissions (775)..."
-  
+  info "Applying ownership and permissions (775)..."
+
+  # Read actual UID/GID from .env so it matches what containers run as
+  local TARGET_UID; TARGET_UID=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "999")
+  local TARGET_GID; TARGET_GID=$(grep "^PGID=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "987")
+  info "Using UID=$TARGET_UID GID=$TARGET_GID from .env"
+
   local target_dirs=("$INSTALL_DIR/data" "$INSTALL_DIR/appdata" "$INSTALL_DIR/state" "$INSTALL_DIR/logs")
   local total_targets=${#target_dirs[@]}
   local processed=0
-  
+
   for dir in "${target_dirs[@]}"; do
     if [[ -d "$dir" ]]; then
-      sudo chown -R $TARGET_UID:$TARGET_GID "$dir"
+      sudo chown -R "$TARGET_UID:$TARGET_GID" "$dir"
       sudo chmod -R 775 "$dir"
       ((processed++))
       local p=$(( processed * 100 / total_targets ))
@@ -623,11 +634,10 @@ deploy_stack() {
       die "DATA_PATH $data_path does not exist! Please ensure it is created."
   fi
 
-  local TARGET_UID
-  TARGET_UID=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2)
-  local dir_owner=$(stat -c '%u' "$data_path" 2>/dev/null || stat -f '%u' "$data_path" 2>/dev/null)
-  if [[ "$dir_owner" != "$TARGET_UID" ]]; then
-      warn "DATA_PATH $data_path owner is $dir_owner, expected $TARGET_UID."
+  local dir_owner=$(stat -c '%u' "$data_path" 2>/dev/null || stat -f '%u' "$data_path" 2>/dev/null || echo "unknown")
+  local expected_uid; expected_uid=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "999")
+  if [[ "$dir_owner" != "$expected_uid" ]]; then
+      warn "DATA_PATH $data_path owner is $dir_owner, expected $expected_uid."
   fi
   
   info "Starting MediaFlow stack..."
