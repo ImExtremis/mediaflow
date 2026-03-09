@@ -4,9 +4,13 @@
 #  One-command installer for the full MediaFlow arr-stack + dashboard
 # =============================================================================
 set -euo pipefail
+trap 'echo -e "\n[ERROR] Install failed at line $LINENO. Check logs/install.log for details." >&2' ERR
+
+# Test if ANSI escape codes crash the terminal
+echo -e "\033[0m" >/dev/null 2>&1 || true
 
 # ─── Non-Interactive Fallback & Colors ─────────────────────────────────────────
-if [ -t 1 ]; then
+if [ -t 1 ] && [ -t 0 ] && [ "${TERM:-}" != "dumb" ]; then
   INTERACTIVE=true
   RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
   CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
@@ -70,15 +74,15 @@ render_header() {
   for ((i=0; i<empty; i++)); do bar+="░"; done
 
   # Save cursor, move home, redraw header, restore cursor
-  echo -ne "\033[s" 
-  echo -ne "\033[H" 
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput sc || true; fi
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cup 0 0 || true; fi
   
   echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${RESET}"
   echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.2${RESET}                         ${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}    ${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}     Current Phase: %-31s ${CYAN}║${RESET}\n" "$CURRENT_PHASE_NAME ($CURRENT_PHASE of $TOTAL_PHASES)"
   echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${RESET}"
-  echo -ne "\033[u" 
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput rc || true; fi
 }
 
 phase_complete() {
@@ -118,7 +122,8 @@ progress_bar() {
   for ((i=0; i<filled; i++)); do bar+="█"; done
   for ((i=0; i<empty; i++)); do bar+="░"; done
   
-  printf "\r${color}[%-20s] %3d%%${RESET} %s\033[K" "$bar" "$percent" "$label"
+  printf "\r${color}[%-20s] %3d%%${RESET} %s" "$bar" "$percent" "$label"
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi
   (( percent == 100 )) && echo ""
 }
 
@@ -130,13 +135,14 @@ start_spinner() {
     return
   fi
   
-  tput civis # Hide cursor
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput civis || true; fi # Hide cursor
   
   (
     local chars="⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏"
     while true; do
       for c in $chars; do
-        printf "\r${CYAN}%s${RESET} %s\033[K" "$c" "$msg"
+        printf "\r${CYAN}%s${RESET} %s" "$c" "$msg"
+        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi
         sleep 0.1
       done
     done
@@ -153,8 +159,10 @@ stop_spinner() {
   SPINNER_PID=""
   
   if $INTERACTIVE; then
-    tput cnorm # Show cursor
-    printf "\r${GREEN}✔${RESET} %s\033[K\n" "$end_msg"
+    command -v tput >/dev/null 2>&1 && tput cnorm || true # Show cursor
+    printf "\r${GREEN}✔${RESET} %s" "$end_msg"
+    command -v tput >/dev/null 2>&1 && tput el || true
+    echo ""
   else
     echo "Done: $end_msg"
   fi
@@ -392,26 +400,25 @@ configure_mediaflow_user() {
 generate_api_keys() {
   info "Generating secure API keys..."
   local env_file="$INSTALL_DIR/.env"
-  local generate_key
   generate_key() { cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32; }
 
   if grep -q "^SONARR_API_KEY=$" "$env_file" 2>/dev/null; then
     SONARR_KEY=$(generate_key)
-    sed -i "s/^SONARR_API_KEY=.*/SONARR_API_KEY=$SONARR_KEY/" "$env_file"
+    sed -i "s/^SONARR_API_KEY=.*/SONARR_API_KEY=$SONARR_KEY/" "$env_file" || true
   else
     SONARR_KEY=$(grep "^SONARR_API_KEY=" "$env_file" | cut -d= -f2)
   fi
 
   if grep -q "^RADARR_API_KEY=$" "$env_file" 2>/dev/null; then
     RADARR_KEY=$(generate_key)
-    sed -i "s/^RADARR_API_KEY=.*/RADARR_API_KEY=$RADARR_KEY/" "$env_file"
+    sed -i "s/^RADARR_API_KEY=.*/RADARR_API_KEY=$RADARR_KEY/" "$env_file" || true
   else
     RADARR_KEY=$(grep "^RADARR_API_KEY=" "$env_file" | cut -d= -f2)
   fi
 
   if grep -q "^PROWLARR_API_KEY=$" "$env_file" 2>/dev/null; then
     PROWLARR_KEY=$(generate_key)
-    sed -i "s/^PROWLARR_API_KEY=.*/PROWLARR_API_KEY=$PROWLARR_KEY/" "$env_file"
+    sed -i "s/^PROWLARR_API_KEY=.*/PROWLARR_API_KEY=$PROWLARR_KEY/" "$env_file" || true
   else
     PROWLARR_KEY=$(grep "^PROWLARR_API_KEY=" "$env_file" | cut -d= -f2)
   fi
@@ -421,8 +428,13 @@ generate_api_keys() {
 
 # ─── Setup Permissions ───────────────────────────────────────────────────
 setup_permissions() {
-  render_header "Directory & Permissions Setup"
+  render_header "Directory & Permissions Setup" || true
   info "Setting up complete TRaSH-compliant directory structure..."
+  
+  local TARGET_UID
+  TARGET_UID=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2)
+  local TARGET_GID
+  TARGET_GID=$(grep "^PGID=" "$INSTALL_DIR/.env" | cut -d= -f2)
   
   local dirs=(
     "$INSTALL_DIR/state"
@@ -462,7 +474,7 @@ setup_permissions() {
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
   fi
 
-  info "Applying ownership (1000:1000) and permissions (775)..."
+  info "Applying ownership ($TARGET_UID:$TARGET_GID) and permissions (775)..."
   
   local target_dirs=("$INSTALL_DIR/data" "$INSTALL_DIR/appdata" "$INSTALL_DIR/state" "$INSTALL_DIR/logs")
   local total_targets=${#target_dirs[@]}
@@ -470,11 +482,11 @@ setup_permissions() {
   
   for dir in "${target_dirs[@]}"; do
     if [[ -d "$dir" ]]; then
-      sudo chown -R 1000:1000 "$dir"
+      sudo chown -R $TARGET_UID:$TARGET_GID "$dir"
       sudo chmod -R 775 "$dir"
       ((processed++))
       local p=$(( processed * 100 / total_targets ))
-      progress_bar "$p" "Setting permissions on ${dir#$INSTALL_DIR/}" "${GREEN}"
+      progress_bar "$p" "Setting permissions on ${dir#$INSTALL_DIR/}" "${GREEN}" || true
     fi
   done
   
@@ -487,7 +499,7 @@ setup_permissions() {
 
 # ─── Pull Docker Images ──────────────────────────────────────────────────────
 pull_images() {
-  render_header "Pulling Docker images"
+  render_header "Pulling Docker images" || true
   info "Pulling images individually..."
   cd "$INSTALL_DIR"
 
@@ -555,7 +567,7 @@ pull_images() {
 
 # ─── Build Docker Images ─────────────────────────────────────────────────────
 build_images() {
-  render_header "Building custom images"
+  render_header "Building custom images" || true
   info "Building local Dockerfiles..."
   cd "$INSTALL_DIR"
   
@@ -603,7 +615,7 @@ build_images() {
 
 # ─── Deploy Stack ────────────────────────────────────────────────────────────
 deploy_stack() {
-  render_header "Starting container stack"
+  render_header "Starting container stack" || true
   local data_path="$INSTALL_DIR/data"
   info "Verifying directory ownership and permissions before deploying..."
   
@@ -611,9 +623,11 @@ deploy_stack() {
       die "DATA_PATH $data_path does not exist! Please ensure it is created."
   fi
 
+  local TARGET_UID
+  TARGET_UID=$(grep "^PUID=" "$INSTALL_DIR/.env" | cut -d= -f2)
   local dir_owner=$(stat -c '%u' "$data_path" 2>/dev/null || stat -f '%u' "$data_path" 2>/dev/null)
-  if [[ "$dir_owner" != "1000" ]]; then
-      warn "DATA_PATH $data_path owner is $dir_owner, expected 1000."
+  if [[ "$dir_owner" != "$TARGET_UID" ]]; then
+      warn "DATA_PATH $data_path owner is $dir_owner, expected $TARGET_UID."
   fi
   
   info "Starting MediaFlow stack..."
@@ -652,12 +666,12 @@ deploy_stack() {
 
 # ─── Retrieve qBittorrent Temp Password ──────────────────────────────────────
 get_qbit_password() {
-  render_header "Passwords & Automation"
-  start_spinner "Waiting for qBittorrent to initialize (approx 10s)..."
+  render_header "Passwords & Automation" || true
+  start_spinner "Waiting for qBittorrent to initialize (approx 10s)..." || true
   sleep 10
-  stop_spinner "qBittorrent initialized"
+  stop_spinner "qBittorrent initialized" || true
   
-  start_spinner "Fetching qBittorrent temporary credentials..."
+  start_spinner "Fetching qBittorrent temporary credentials..." || true
   local retries=20
   local compose_cmd="${DOCKER_CMD:-docker}"
   QBIT_PASS=""
@@ -682,12 +696,12 @@ get_qbit_password() {
   if [[ -z "$QBIT_PASS" ]]; then
     QBIT_PASS="Not found — check docker logs"
   fi
-  stop_spinner "Captured credentials"
+  stop_spinner "Captured credentials" || true
 }
 
 # ─── Wait for Services ───────────────────────────────────────────────────────
 wait_for_services() {
-  render_header "Health Checks"
+  render_header "Health Checks" || true
   info "Waiting for containers to become healthy..."
   
   if ! $INTERACTIVE; then
@@ -735,12 +749,12 @@ wait_for_services() {
   local chars=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
   local char_idx=0
   
-  tput civis
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput civis || true; fi
   
   while (( retries-- > 0 )); do
     all_healthy=true
     
-    echo -ne "\033[${#containers[@]}A"
+    if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cuu ${#containers[@]} || true; fi
     
     local spinner_char="${chars[$char_idx]}"
     char_idx=$(( (char_idx + 1) % ${#chars[@]} ))
@@ -750,16 +764,20 @@ wait_for_services() {
       st=$(${DOCKER_CMD:-docker} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo "Missing")
       
       if [[ "$st" == "healthy" || "$st" == "running" ]]; then
-        printf "  %-25s ${GREEN}✔ Healthy${RESET}\033[K\n" "$c"
+        printf "  %-25s ${GREEN}✔ Healthy${RESET}" "$c"
+        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
       elif [[ "$st" == "starting" ]]; then
         all_healthy=false
-        printf "  %-25s ${CYAN}%s Starting...${RESET}\033[K\n" "$c" "$spinner_char"
+        printf "  %-25s ${CYAN}%s Starting...${RESET}" "$c" "$spinner_char"
+        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
       elif [[ "$st" == "Missing" ]]; then
         all_healthy=false
-        printf "  %-25s ${YELLOW}✗ Not Found${RESET}\033[K\n" "$c"
+        printf "  %-25s ${YELLOW}✗ Not Found${RESET}" "$c"
+        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
       else
         all_healthy=false
-        printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}\033[K\n" "$c" "$st"
+        printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}" "$c" "$st"
+        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
       fi
     done
     
@@ -769,7 +787,7 @@ wait_for_services() {
     sleep 2
   done
 
-  tput cnorm
+  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cnorm || true; fi
 
   if ! $all_healthy; then
     warn "Some containers did not become healthy in time."
@@ -784,7 +802,7 @@ wait_for_services() {
 
 # ─── Automate Configurations ─────────────────────────────────────────────────
 automate_configurations() {
-  start_spinner "Automating advanced API configurations..."
+  start_spinner "Automating advanced API configurations..." || true
   sleep 10
   
   local SONARR_KEY=$(grep "^SONARR_API_KEY=" "$INSTALL_DIR/.env" | cut -d= -f2 || true)
@@ -794,7 +812,7 @@ automate_configurations() {
     -H "Content-Type: application/json" -H "X-Api-Key: ${PROWLARR_KEY}" \
     -d '{ "name": "Sonarr-Anime", "implementation": "Sonarr", "configContract": "SonarrSettings", "fields": [ { "name": "prowlarrUrl", "value": "http://prowlarr:9696" }, { "name": "baseUrl", "value": "http://sonarr-anime:8989" }, { "name": "apiKey", "value": "'"${SONARR_KEY}"'" }, { "name": "syncLevel", "value": "fullSync" } ], "appProfileId": 1 }' >/dev/null || true
   
-  stop_spinner "Advanced API configurations applied"
+  stop_spinner "Advanced API configurations applied" || true
   
   local t_taken=$(( SECONDS - INSTALL_START_TIME ))
   INSTALL_START_TIME=$SECONDS
@@ -851,7 +869,7 @@ main() {
   INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   
   if $INTERACTIVE; then clear; fi
-  print_banner
+  print_banner || true
 
   if [[ $EUID -eq 0 ]]; then
     warn "Running as root. It's recommended to run as a regular user with sudo access."
@@ -862,14 +880,14 @@ main() {
   
   TOTAL_PHASES=7
 
-  render_header "System Setup"
+  render_header "System Setup" || true
   detect_os
   check_disk_space
   check_ports
   
-  start_spinner "Installing dependencies..."
+  start_spinner "Installing dependencies..." || true
   install_dependencies > /dev/null 2>&1
-  stop_spinner "Dependencies installed"
+  stop_spinner "Dependencies installed" || true
   
   install_docker
   configure_docker
