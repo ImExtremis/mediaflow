@@ -3,6 +3,7 @@
 #  MediaFlow · install.sh
 #  One-command installer for the full MediaFlow arr-stack + dashboard
 # =============================================================================
+export TERM="${TERM:-xterm-256color}"
 set -euo pipefail
 
 # Global error trap — always show which line failed
@@ -58,7 +59,7 @@ INSTALL_START_TIME=$SECONDS
 
 render_header() {
   CURRENT_PHASE_NAME="$1"
-  ((CURRENT_PHASE++))
+  ((CURRENT_PHASE++)) || true
   log_to_file "[PHASE START] $CURRENT_PHASE/$TOTAL_PHASES: $CURRENT_PHASE_NAME"
   
   if ! $INTERACTIVE; then
@@ -76,20 +77,12 @@ render_header() {
   for ((i=0; i<filled; i++)); do bar+="█"; done
   for ((i=0; i<empty; i++)); do bar+="░"; done
 
-  # Only use cursor movement in truly interactive terminals with tput support
-  if $INTERACTIVE && command -v tput >/dev/null 2>&1 && tput cup 0 0 >/dev/null 2>&1; then
-    tput sc || true
-    tput cup 0 0 || true
-  fi
-  
+  echo ""
   echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${RESET}"
   echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.2${RESET}                         ${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}    ${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}     Current Phase: %-31s ${CYAN}║${RESET}\n" "$CURRENT_PHASE_NAME ($CURRENT_PHASE of $TOTAL_PHASES)"
   echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${RESET}"
-  if $INTERACTIVE && command -v tput >/dev/null 2>&1 && tput rc >/dev/null 2>&1; then
-    tput rc || true
-  fi
 }
 
 phase_complete() {
@@ -98,7 +91,7 @@ phase_complete() {
   local mins=$(( time_taken / 60 ))
   local secs=$(( time_taken % 60 ))
   local time_str="${mins}m ${secs}s"
-  (( mins == 0 )) && time_str="${secs}s"
+  [[ $mins -eq 0 ]] && time_str="${secs}s"
   
   if $INTERACTIVE; then
     echo -e "${GREEN}✔${RESET} Phase ${CURRENT_PHASE} complete: ${phase_name} (took ${time_str})"
@@ -114,13 +107,13 @@ progress_bar() {
   local color="${3:-$CYAN}"
   
   if ! $INTERACTIVE; then
-    (( percent == 100 || percent % 20 == 0 )) && echo "[$percent%] $label"
+    [[ $percent -eq 100 || $((percent % 20)) -eq 0 ]] && echo "[$percent%] $label"
     return
   fi
   
   local width=20
-  if (( percent < 0 )); then percent=0; fi
-  if (( percent > 100 )); then percent=100; fi
+  if [[ $percent -lt 0 ]]; then percent=0; fi
+  if [[ $percent -gt 100 ]]; then percent=100; fi
   
   local filled=$(( percent * width / 100 ))
   local empty=$(( width - filled ))
@@ -131,7 +124,7 @@ progress_bar() {
   
   printf "\r${color}[%-20s] %3d%%${RESET} %s" "$bar" "$percent" "$label"
   if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi
-  (( percent == 100 )) && echo ""
+  [[ $percent -eq 100 ]] && echo ""
 }
 
 SPINNER_PID=""
@@ -183,12 +176,12 @@ print_banner() {
     echo -e "${BOLD}${CYAN}"
   fi
   cat << 'EOF'
-  ███╗   ███╗███████╗██████╗ ██╗ █████╗   ███████╗██╗      ██████╗ ██╗    ██╗
-  ████╗ ████║██╔════╝██╔══██╗██║██╔══██╗  ██╔════╝██║     ██╔═══██╗██║    ██║
-  ██╔████╔██║█████╗  ██║  ██║██║███████║  █████╗  ██║     ██║   ██║██║ █╗ ██║
-  ██║╚██╔╝██║██╔══╝  ██║  ██║██║██╔══██║  ██╔══╝  ██║     ██║   ██║██║███╗██║
-  ██║ ╚═╝ ██║███████╗██████╔╝██║██║  ██║  ██║     ███████╗╚██████╔╝╚███╔███╔╝
-  ╚═╝     ╚═╝╚══════╝╚═════╝ ╚═╝╚═╝  ╚═╝  ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝
+  ███╗   ███╗ ███████╗ ██████╗  ██╗  █████╗    ███████╗ ██╗       ██████╗  ██╗    ██╗
+  ████╗ ████║ ██╔════╝ ██╔══██╗ ██║ ██╔══██╗   ██╔════╝ ██║      ██╔═══██╗ ██║    ██║
+  ██╔████╔██║ █████╗   ██║  ██║ ██║ ███████║   █████╗   ██║      ██║   ██║ ██║ █╗ ██║
+  ██║╚██╔╝██║ ██╔══╝   ██║  ██║ ██║ ██╔══██║   ██╔══╝   ██║      ██║   ██║ ██║███╗██║
+  ██║ ╚═╝ ██║ ███████╗ ██████╔╝ ██║ ██║  ██║   ██║      ███████╗ ╚██████╔╝ ╚███╔███╔╝
+  ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
   echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.2.0${RESET}"
@@ -228,10 +221,10 @@ check_disk_space() {
   available_kb=$(df -k "$install_dir" | tail -1 | awk '{print $4}')
   local available_gb=$(( available_kb / 1024 / 1024 ))
   info "Available disk space on install dir: ${BOLD}${available_gb}GB${RESET}"
-  if (( available_gb < min_gb )); then
-    die "Insufficient disk space. Need at least ${min_gb}GB, have ${available_gb}GB."
-  fi
-  if (( available_gb < warn_gb )); then
+  if [[ $available_gb -lt $min_gb ]]; then
+    warn "Insufficient disk space. Need at least ${min_gb}GB, have ${available_gb}GB."
+    warn "Installation may fail during Docker operations, continuing anyway..."
+  elif [[ $available_gb -lt $warn_gb ]]; then
     warn "Only ${available_gb}GB free. Recommended ≥${warn_gb}GB for a real media library."
     warn "Continuing anyway – make sure your DATA_PATH in .env is on a larger drive."
   else
@@ -411,7 +404,7 @@ configure_mediaflow_user() {
 generate_api_keys() {
   info "Generating secure API keys..."
   local env_file="$INSTALL_DIR/.env"
-  generate_key() { cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32; }
+  generate_key() { cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32 || true; }
 
   if grep -q "^SONARR_API_KEY=$" "$env_file" 2>/dev/null; then
     SONARR_KEY=$(generate_key)
@@ -476,6 +469,9 @@ setup_permissions() {
     fi
   done
 
+  # Fix for root-owned logs directory preventing log_to_file calls inside this function
+  sudo chown -R "${SUDO_USER:-$USER}" "$INSTALL_DIR/logs" 2>/dev/null || true
+
   if [[ -f "$INSTALL_DIR/config/qBittorrent.conf" ]]; then
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
   fi
@@ -487,7 +483,7 @@ setup_permissions() {
   local TARGET_GID; TARGET_GID=$(grep "^PGID=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "987")
   info "Using UID=$TARGET_UID GID=$TARGET_GID from .env"
 
-  local target_dirs=("$INSTALL_DIR/data" "$INSTALL_DIR/appdata" "$INSTALL_DIR/state" "$INSTALL_DIR/logs")
+  local target_dirs=("$INSTALL_DIR/data" "$INSTALL_DIR/appdata" "$INSTALL_DIR/state")
   local total_targets=${#target_dirs[@]}
   local processed=0
 
@@ -495,11 +491,13 @@ setup_permissions() {
     if [[ -d "$dir" ]]; then
       sudo chown -R "$TARGET_UID:$TARGET_GID" "$dir"
       sudo chmod -R 775 "$dir"
-      ((processed++))
+      ((processed++)) || true
       local p=$(( processed * 100 / total_targets ))
       progress_bar "$p" "Setting permissions on ${dir#$INSTALL_DIR/}" "${GREEN}" || true
     fi
   done
+  echo ""
+
   
   success "Directories created and permissions configured."
   
@@ -522,43 +520,105 @@ pull_images() {
   done < <($compose_cmd config | grep "image:" | awk '{print $2}' | sort -u || true)
   
   local total=${#images[@]}
-  if (( total == 0 )); then
+  if [[ "${total:-0}" -eq 0 ]]; then
     warn "No images found to pull."
   else
     local current=0
     for img in "${images[@]}"; do
-      ((current++))
-      local label="Pulling image $current of $total: ${img##*/}"
-      
+      if ${DOCKER_CMD:-docker} image inspect "$img" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✔${RESET} Already present (cached): ${img##*/}"
+        ((current++)) || true
+        continue
+      fi
+
+      local img_name="${img##*/}"
+      local size_msg=""
+      case "$img_name" in
+        *tdarr*) size_msg=" (~1.5GB — this may take several minutes)" ;;
+        *jellyfin*) size_msg=" (~500MB)" ;;
+        *sonarr*|*radarr*) size_msg=" (~300MB)" ;;
+        *qbittorrent*) size_msg=" (~200MB)" ;;
+        *bazarr*|*prowlarr*) size_msg=" (~150MB)" ;;
+      esac
+
+      local label="Pulling image $current of $total: $img_name$size_msg"
+
       if $INTERACTIVE; then
         echo -e "${CYAN}▶${RESET} ${BOLD}${label}${RESET}"
         
+        # Start heartbeat spinner subshell
+        (
+          start_time=$SECONDS
+          local chars="⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏"
+          local arr=($chars)
+          local i=0
+          while true; do
+            elapsed=$(( SECONDS - start_time ))
+            printf "\r\033[0;36m%s\033[0m Downloading %s... (%ds elapsed)\033[K" "${arr[$i]}" "$img_name" "$elapsed"
+            i=$(( (i+1) % 10 ))
+            sleep 1
+          done
+        ) &
+        local heartbeat_pid=$!
+
+        set +o pipefail
         # We pipe docker pull through awk
-        ${DOCKER_CMD:-docker} pull "$img" 2>&1 | stdbuf -oL awk -v img_name="${img##*/}" '
-          BEGIN { total=0; done=0; }
-          /Pulling fs layer/ { total++ }
+        ${DOCKER_CMD:-docker} pull "$img" 2>&1 | stdbuf -oL awk -v img_name="$img_name" '
+          function to_mb(s) {
+            val = s + 0
+            if (s ~ /GB/) return val * 1024
+            if (s ~ /kB/ || s ~ /KB/) return val / 1024
+            if (s ~ /B/) return val / (1024 * 1024)
+            return val
+          }
+          BEGIN { total_bytes=0; downloaded_bytes=0; }
+          # Legacy layer counting for non-progress lines just in case
+          /Pulling fs layer/ { layers++ }
           /Download complete/ || /Pull complete/ {
-            done++
-            if(total>0) {
-              pct = int(done * 100 / total)
-              if(pct>100) pct=100
-              
-              filled = int(pct * 20 / 100)
-              empty = 20 - filled
-              bar = ""
-              for(i=0; i<filled; i++) bar = bar "█"
-              for(i=0; i<empty; i++) bar = bar "░"
-              
-              printf "\r\033[0;36m[%-20s] %3d%%\033[0m %s\033[K", bar, pct, "Pulling " img_name
-            }
+            done_layers++
+          }
+          
+          # Catch byte download progress
+          /Downloading/ {
+             n = split($NF, arr, "/")
+             if (n == 2) {
+                layer = $1
+                sub(/:/, "", layer)
+                dl[layer] = to_mb(arr[1])
+                tot[layer] = to_mb(arr[2])
+                
+                sum_dl = 0
+                sum_tot = 0
+                for (k in tot) {
+                  sum_dl += dl[k]
+                  sum_tot += tot[k]
+                }
+                if (sum_tot > 0) {
+                  pct = int(sum_dl * 100 / sum_tot)
+                  if (pct > 100) pct = 100
+                  
+                  filled = int(pct * 20 / 100)
+                  empty = 20 - filled
+                  bar = ""
+                  for(i=0; i<filled; i++) bar = bar "█"
+                  for(i=0; i<empty; i++) bar = bar "░"
+                  
+                  printf "\r\033[0;36m[%-20s] %3d%%\033[0m %s\033[K", bar, pct, "Pulling " img_name " (" int(sum_dl) "MB / " int(sum_tot) "MB)"
+                }
+             }
           }
           END {
             printf "\033[K\r\033[0;32m✔\033[0m Pulled %s successfully\n", img_name
           }
         ' || {
           echo -e "\n${RED}✗${RESET} Failed to pull $img"
-          die "Docker pull failed for $img"
-        }
+          warn "Docker pull failed for $img"
+        } || true
+        set -o pipefail
+        
+        # Kill heartbeat spinner
+        kill $heartbeat_pid 2>/dev/null || true
+        wait $heartbeat_pid 2>/dev/null || true
       else
         echo "Pulling $img..."
         ${DOCKER_CMD:-docker} pull "$img" --quiet >/dev/null || die "Docker pull failed for $img"
@@ -567,7 +627,7 @@ pull_images() {
   fi
 
   info "Running catch-all compose pull..."
-  ${compose_cmd} pull --quiet 2>/dev/null || true
+  ${compose_cmd} pull || { warn "compose pull failed, continuing..."; true; }
   
   success "All Docker images pulled."
   
@@ -585,6 +645,7 @@ build_images() {
   local compose_cmd="${DOCKER_CMD:-docker} compose"
   
   if $INTERACTIVE; then
+    set +o pipefail
     ${compose_cmd} build --progress plain 2>&1 | stdbuf -oL awk '
       /Step ([0-9]+)\/([0-9]+)/ {
         match($0, /Step ([0-9]+)\/([0-9]+) : (.*)/, arr)
@@ -612,7 +673,8 @@ build_images() {
       END {
         print ""
       }
-    ' || warn "Build completed with some warnings/errors. Check logs."
+    ' || warn "Build completed with some warnings/errors. Check logs." || true
+    set -o pipefail
   else
     ${compose_cmd} build --quiet || warn "Build completed with warnings/errors."
   fi
@@ -650,7 +712,7 @@ deploy_stack() {
   sleep 5
   
   local failed=0
-  for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr_anime:/config" "mediaflow_sonarr_anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
+  for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
     local cname="${container%%:*}"
     local cpath="${container##*:}"
     if ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
@@ -686,7 +748,8 @@ get_qbit_password() {
   local compose_cmd="${DOCKER_CMD:-docker}"
   QBIT_PASS=""
   
-  while (( retries-- > 0 )); do
+  while [[ $retries -gt 0 ]]; do
+    ((retries--)) || true
     QBIT_PASS=$(
       ${compose_cmd} logs mediaflow_qbittorrent 2>&1 \
       | grep -i "temporary password" \
@@ -720,14 +783,15 @@ wait_for_services() {
       local name="${svc%%:*}"
       local port="${svc##*:}"
       local retries=30
-      while (( retries-- > 0 )); do
+      while [[ $retries -gt 0 ]]; do
+        ((retries--)) || true
         if curl -sf "http://localhost:$port/ping" &>/dev/null; then
           success "$name is ready"
           break
         fi
         sleep 3
       done
-      (( retries <= 0 )) && warn "$name may not be ready yet – check: docker compose logs $name"
+      [[ $retries -le 0 ]] && warn "$name may not be ready yet – check: docker compose logs $name"
     done
     local t_taken=$(( SECONDS - INSTALL_START_TIME ))
     INSTALL_START_TIME=$SECONDS
@@ -746,7 +810,7 @@ wait_for_services() {
     "mediaflow_bazarr"
     "mediaflow_overseerr"
     "mediaflow_tdarr"
-    "mediaflow_sonarr_anime"
+    "mediaflow_sonarr-anime"
   )
   
   echo "Waiting for containers to become healthy..."
@@ -761,7 +825,8 @@ wait_for_services() {
   
   if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput civis || true; fi
   
-  while (( retries-- > 0 )); do
+  while [[ $retries -gt 0 ]]; do
+    ((retries--)) || true
     all_healthy=true
     
     if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cuu ${#containers[@]} || true; fi
@@ -877,12 +942,14 @@ print_summary() {
 # ─── Main ────────────────────────────────────────────────────────────────────
 main() {
   INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  mkdir -p "$INSTALL_DIR/logs"
+  {
   
   if $INTERACTIVE; then clear; fi
   print_banner || true
 
   if [[ $EUID -eq 0 ]]; then
-    warn "Running as root. It's recommended to run as a regular user with sudo access."
+    warn "Running as root. It's recommended to run as a regular user with sudo access (sudo -E bash install.sh)."
   fi
 
   info "Starting MediaFlow installation in: ${BOLD}$INSTALL_DIR${RESET}"
@@ -923,6 +990,7 @@ main() {
   get_qbit_password
   automate_configurations
   print_summary
+  } 2>&1 | tee -a "$INSTALL_DIR/logs/install.log"
 }
 
 main "$@"

@@ -2,7 +2,7 @@
 //  MediaFlow · Settings.jsx
 // =============================================================================
 import { useState, useEffect } from 'react';
-import useConfig from '../hooks/useConfig';
+import { useConfig } from '../hooks/useConfig';
 import { showToast } from '../App';
 
 export default function Settings() {
