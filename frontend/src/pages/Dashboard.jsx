@@ -1,7 +1,7 @@
+import { useState, useEffect, useCallback } from 'react';
 // =============================================================================
 //  MediaFlow · Dashboard.jsx – Service health overview
 // =============================================================================
-import { useState, useEffect, useCallback } from 'react';
 
 const SERVICES_META = {
     sonarr: { label: 'Sonarr', icon: '📺', color: '#35C5F4', port: '8989' },

@@ -1,6 +1,6 @@
 {
     "name": "mediaflow-backend",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "MediaFlow Dashboard API Server",
     "main": "server.js",
     "scripts": {

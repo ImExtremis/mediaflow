@@ -82,7 +82,7 @@ function ToastContainer() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar() {
     const location = useLocation();
-    const [version, setVersion] = useState('v1.2');
+    const [version, setVersion] = useState('v1.2.1');
 
     useEffect(() => {
         fetch('/api/update/check')
