@@ -12,7 +12,7 @@ let updateCache = null;
 let updateCacheTime = 0;
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-const GITHUB_REPO = process.env.GITHUB_REPO || 'YOUR_USERNAME/media-flow';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'ImExtremis/mediaflow';
 const VERSION_FILE = path.join(__dirname, '../../../VERSION');
 const UPDATE_SCRIPT = path.join(__dirname, '../../../update.sh');
 
