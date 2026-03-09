@@ -1,7 +1,7 @@
 // =============================================================================
 //  MediaFlow · App.jsx – Root layout with sidebar + route definitions
 // =============================================================================
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 
 import Dashboard from './pages/Dashboard.jsx';
