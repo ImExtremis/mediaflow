@@ -778,21 +778,34 @@ wait_for_services() {
   info "Waiting for containers to become healthy..."
   
   if ! $INTERACTIVE; then
-    local services=("sonarr:8989" "radarr:7878" "prowlarr:9696")
-    for svc in "${services[@]}"; do
-      local name="${svc%%:*}"
-      local port="${svc##*:}"
-      local retries=30
-      while [[ $retries -gt 0 ]]; do
-        ((retries--)) || true
-        if curl -sf "http://localhost:$port/ping" &>/dev/null; then
-          success "$name is ready"
-          break
+    local services=("sonarr:8989" "radarr:7878" "prowlarr:9696" "qbittorrent:8080" "jellyfin:8096" "bazarr:6767" "overseerr:5055" "tdarr:8265" "sonarr-anime:8990")
+    local retries=30
+    while [[ $retries -gt 0 ]]; do
+      ((retries--)) || true
+      local statuses=()
+      local all_ready=true
+      for svc in "${services[@]}"; do
+        local name="${svc%%:*}"
+        local port="${svc##*:}"
+        if curl -sf "http://localhost:$port/ping" &>/dev/null || curl -sf "http://localhost:$port" &>/dev/null; then
+          statuses+=("$name: healthy")
+        else
+          statuses+=("$name: starting")
+          all_ready=false
         fi
-        sleep 3
       done
-      [[ $retries -le 0 ]] && warn "$name may not be ready yet – check: docker compose logs $name"
+      
+      local status_str=$(IFS=', '; echo "${statuses[*]}")
+      info "Waiting for containers... ($status_str)"
+      
+      if $all_ready; then
+         success "All services are ready"
+         break
+      fi
+      sleep 15
     done
+    [[ $retries -le 0 ]] && warn "Some services may not be ready yet – check: docker compose logs"
+    
     local t_taken=$(( SECONDS - INSTALL_START_TIME ))
     INSTALL_START_TIME=$SECONDS
     phase_complete "Health Checks" "$t_taken"
@@ -839,28 +852,26 @@ wait_for_services() {
       st=$(${DOCKER_CMD:-docker} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo "Missing")
       
       if [[ "$st" == "healthy" || "$st" == "running" ]]; then
-        printf "  %-25s ${GREEN}✔ Healthy${RESET}" "$c"
-        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
+        printf "\r  %-25s ${GREEN}✔ Healthy${RESET}\033[K\n" "$c"
       elif [[ "$st" == "starting" ]]; then
         all_healthy=false
-        printf "  %-25s ${CYAN}%s Starting...${RESET}" "$c" "$spinner_char"
-        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
+        printf "\r  %-25s ${CYAN}%s Starting...${RESET}\033[K\n" "$c" "$spinner_char"
       elif [[ "$st" == "Missing" ]]; then
         all_healthy=false
-        printf "  %-25s ${YELLOW}✗ Not Found${RESET}" "$c"
-        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
+        printf "\r  %-25s ${YELLOW}✗ Not Found${RESET}\033[K\n" "$c"
       else
         all_healthy=false
-        printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}" "$c" "$st"
-        if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput el || true; fi; echo ""
+        printf "\r  %-25s ${RED}✗ Unhealthy (%s)${RESET}\033[K\n" "$c" "$st"
       fi
     done
     
     if $all_healthy; then
+      success "All containers are healthy!"
       break
     fi
     sleep 2
   done
+
 
   if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cnorm || true; fi
 
