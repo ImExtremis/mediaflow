@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig.js';
 import { showToast } from '../App.jsx';
+import { apiFetch } from '../utils/api';
 
 const PATH_FIELDS = [
     { key: 'mediaPath', label: 'Media Library Root', icon: '📁', placeholder: '/mnt/media', desc: 'Root directory for all media (shared with Sonarr & Radarr)' },
@@ -38,7 +39,7 @@ export default function StoragePaths() {
     const [pathChecks, setPathChecks] = useState(null);
 
     useEffect(() => {
-        fetch('/api/config/paths/check')
+        apiFetch('/api/config/paths/check')
             .then(res => res.json())
             .then(data => {
                 if (data.success) setPathChecks(data.checks);
@@ -55,7 +56,7 @@ export default function StoragePaths() {
         if (result.success) {
             showToast('Storage paths saved!', 'success');
             // Re-check after save
-            fetch('/api/config/paths/check')
+            apiFetch('/api/config/paths/check')
                 .then(res => res.json())
                 .then(data => { if (data.success) setPathChecks(data.checks); })
                 .catch(err => console.error("Failed to check paths:", err));

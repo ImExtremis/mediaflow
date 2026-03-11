@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../utils/api';
 // =============================================================================
 //  MediaFlow · UpdateOverlay.jsx
 // =============================================================================
@@ -20,7 +21,7 @@ export default function UpdateOverlay() {
             return;
         }
 
-        fetch('/api/update/check')
+        apiFetch('/api/update/check')
             .then(res => res.json())
             .then(data => {
                 if (data.updateAvailable) {
@@ -30,7 +31,7 @@ export default function UpdateOverlay() {
             .catch(err => console.error("Update check failed", err));
 
         // Check if an update is already running
-        fetch('/api/update/status')
+        apiFetch('/api/update/status')
             .then(res => res.json())
             .then(data => {
                 if (data.updateInProgress) {
@@ -84,7 +85,7 @@ export default function UpdateOverlay() {
             setNewVersionInfo(updateData.latestVersion);
             setShowModal(false);
 
-            fetch('/api/update/start', { method: 'POST' })
+            apiFetch('/api/update/start', { method: 'POST' })
                 .then(res => res.json())
                 .then(() => {
                     startLogStream();

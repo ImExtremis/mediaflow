@@ -39,15 +39,17 @@ export default function Login() {
     return (
         <div className="auth-page">
             <div className="auth-card fade-in">
-                <div className="auth-header">
+                <div className="auth-header" style={{ textAlign: 'center' }}>
+                    <img src="/logo.png" alt="MediaFlow Logo" style={{ width: '64px', height: '64px', margin: '0 auto 15px auto', display: 'block' }} />
                     <h1>MediaFlow</h1>
                     <p>Dashboard Login</p>
                 </div>
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
-                        <label>Username</label>
+                        <label className="form-label">Username</label>
                         <input
                             type="text"
+                            className="form-input"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -55,15 +57,16 @@ export default function Login() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Password</label>
+                        <label className="form-label">Password</label>
                         <input
                             type="password"
+                            className="form-input"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
                     </div>
-                    <button type="submit" className="btn-primary" disabled={isLoading}>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }} disabled={isLoading}>
                         {isLoading ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>

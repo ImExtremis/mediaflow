@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/api';
 
 export default function Watch() {
     const [jellyfinStatus, setJellyfinStatus] = useState({ url: null, apiKey: null, loading: true });
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
-        fetch('/api/jellyfin/info')
+        apiFetch('/api/jellyfin/info')
             .then(res => res.json())
             .then(data => setJellyfinStatus({ ...data, loading: false }))
             .catch(() => setJellyfinStatus({ url: null, apiKey: null, loading: false }));

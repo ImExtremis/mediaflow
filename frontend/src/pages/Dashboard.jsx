@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useConfig } from '../hooks/useConfig';
 import { ExternalLink } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 // =============================================================================
 //  MediaFlow · Dashboard.jsx – Service health overview
 // =============================================================================
@@ -32,7 +33,7 @@ export default function Dashboard() {
 
     const fetchHealth = useCallback(async () => {
         try {
-            const res = await fetch('/api/health-monitor');
+            const res = await apiFetch('/api/health-monitor');
             if (res.ok) {
                 const data = await res.json();
                 setHealthState(data);

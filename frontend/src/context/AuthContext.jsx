@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
                 }
             }
 
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('mediaflow_token');
             if (!token) {
                 setLoading(false);
                 return;
@@ -39,18 +39,18 @@ export const AuthProvider = ({ children }) => {
                 setUser(data.user);
                 setIsAuthenticated(true);
             } else {
-                localStorage.removeItem('token');
+                localStorage.removeItem('mediaflow_token');
             }
         } catch (err) {
             console.error('Auth check failed:', err);
-            localStorage.removeItem('token');
+            localStorage.removeItem('mediaflow_token');
         } finally {
             setLoading(false);
         }
     };
 
     const login = (token, userData) => {
-        localStorage.setItem('token', token);
+        localStorage.setItem('mediaflow_token', token);
         setUser(userData);
         setIsAuthenticated(true);
     };
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {
             console.error('Logout request failed', e);
         }
-        localStorage.removeItem('token');
+        localStorage.removeItem('mediaflow_token');
         setUser(null);
         setIsAuthenticated(false);
     };

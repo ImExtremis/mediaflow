@@ -404,7 +404,7 @@ configure_mediaflow_user() {
 generate_api_keys() {
   info "Generating secure API keys..."
   local env_file="$INSTALL_DIR/.env"
-  generate_key() { cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32 || true; }
+  generate_key() { openssl rand -hex 32 || cat /dev/urandom | tr -dc 'a-f0-9' | head -c 32 || true; }
 
   if grep -q "^SONARR_API_KEY=$" "$env_file" 2>/dev/null; then
     SONARR_KEY=$(generate_key)
@@ -432,6 +432,13 @@ generate_api_keys() {
     sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_KEY/" "$env_file" || true
   else
     JWT_KEY=$(grep "^JWT_SECRET=" "$env_file" | cut -d= -f2 || true)
+  fi
+
+  if grep -q "^JELLYFIN_API_KEY=$" "$env_file" 2>/dev/null; then
+    JELLYFIN_KEY=$(generate_key)
+    sed -i "s/^JELLYFIN_API_KEY=.*/JELLYFIN_API_KEY=$JELLYFIN_KEY/" "$env_file" || true
+  else
+    JELLYFIN_KEY=$(grep "^JELLYFIN_API_KEY=" "$env_file" | cut -d= -f2 || true)
   fi
 
   success "API keys and JWT secret generated"

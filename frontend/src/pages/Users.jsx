@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { showToast } from '../App';
+import { apiFetch } from '../utils/api';
 import { Edit2, Trash2, UserPlus, Shield, User, Eye, X } from 'lucide-react';
 
 export default function Users() {
@@ -25,10 +26,7 @@ export default function Users() {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/users', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await apiFetch('/api/users');
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -44,7 +42,6 @@ export default function Users() {
 
     const handleFormSubmit = async (e) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
         const url = modalMode === 'add' ? '/api/users' : `/api/users/${editingUserId}`;
         const method = modalMode === 'add' ? 'POST' : 'PUT';
 
@@ -54,12 +51,8 @@ export default function Users() {
         }
 
         try {
-            const res = await fetch(url, {
+            const res = await apiFetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify(payload)
             });
 
@@ -89,11 +82,9 @@ export default function Users() {
 
         if (!window.confirm('Are you sure you want to delete this user?')) return;
 
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`/api/users/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            const res = await apiFetch(`/api/users/${id}`, {
+                method: 'DELETE'
             });
             if (res.ok) {
                 showToast('User deleted', 'success');
