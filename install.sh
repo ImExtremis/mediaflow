@@ -168,6 +168,24 @@ stop_spinner() {
   fi
 }
 
+stop_spinner_fail() {
+  local end_msg="$1"
+  if [[ -n "$SPINNER_PID" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
+    kill "$SPINNER_PID" >/dev/null 2>&1
+    wait "$SPINNER_PID" 2>/dev/null || true
+  fi
+  SPINNER_PID=""
+  
+  if $INTERACTIVE; then
+    command -v tput >/dev/null 2>&1 && tput cnorm || true # Show cursor
+    printf "\r${RED}✗${RESET} %s" "$end_msg"
+    command -v tput >/dev/null 2>&1 && tput el || true
+    echo ""
+  else
+    echo "Failed: $end_msg"
+  fi
+}
+
 # ─── Banner ──────────────────────────────────────────────────────────────────
 print_banner() {
   # Reset first to clear any lingering color codes
@@ -545,9 +563,9 @@ pull_images() {
   else
     local current=0
     for img in "${images[@]}"; do
+      ((current++)) || true
       if ${DOCKER_CMD:-docker} image inspect "$img" >/dev/null 2>&1; then
         echo -e "  ${GREEN}✔${RESET} Already present (cached): ${img##*/}"
-        ((current++)) || true
         continue
       fi
 
@@ -566,6 +584,7 @@ pull_images() {
       if $INTERACTIVE; then
         echo -e "${CYAN}▶${RESET} ${BOLD}${label}${RESET}"
         
+        START=$(date +%s)
         # Start heartbeat spinner subshell
         (
           start_time=$SECONDS
@@ -627,9 +646,6 @@ pull_images() {
                 }
              }
           }
-          END {
-            printf "\033[K\r\033[0;32m✔\033[0m Pulled %s successfully\n", img_name
-          }
         ' || {
           echo -e "\n${RED}✗${RESET} Failed to pull $img"
           warn "Docker pull failed for $img"
@@ -639,6 +655,9 @@ pull_images() {
         # Kill heartbeat spinner
         kill $heartbeat_pid 2>/dev/null || true
         wait $heartbeat_pid 2>/dev/null || true
+        
+        ELAPSED=$(( $(date +%s) - START ))
+        echo -e "\r\033[K\033[0;32m✔\033[0m Pulled $img_name successfully (${ELAPSED}s elapsed)"
       else
         echo "Pulling $img..."
         ${DOCKER_CMD:-docker} pull "$img" --quiet >/dev/null || die "Docker pull failed for $img"
@@ -738,11 +757,15 @@ deploy_stack() {
   [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
   [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
   
-  if ${compose_cmd} up -d $core_services > /dev/null 2>&1; then
+  ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
+  local DEPLOY_EXIT=$?
+  
+  if [[ $DEPLOY_EXIT -eq 0 ]]; then
     stop_spinner "All containers started" || true
   else
-    stop_spinner "Failed to start MediaFlow stack" || true
-    die "Docker compose up failed"
+    stop_spinner_fail "Docker compose up failed" || true
+    cat /tmp/mediaflow_deploy.log
+    die "Docker compose up failed (exit code $DEPLOY_EXIT)"
   fi
 
   info "Running post-start permission verification loop..."
