@@ -14,6 +14,13 @@ warn()    { echo -e "${YELLOW}[WARN]${RESET}  $*"; }
 error()   { echo -e "${RED}[ERROR]${RESET} $*" >&2; }
 die()     { error "$*"; exit 1; }
 
+# Handle --skip-pull to prevent infinite loops when self-updating
+SKIP_PULL=false
+if [[ "$1" == "--skip-pull" ]]; then
+  SKIP_PULL=true
+  shift
+fi
+
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$INSTALL_DIR"
 
@@ -143,9 +150,22 @@ success "Maintenance mode enabled."
 # STEP 4: Pull latest code
 # -----------------------------------------------------------------------------
 info "Step 4: Pulling latest code..."
-git fetch origin
-git pull origin main
-success "Latest code pulled."
+if [[ "$SKIP_PULL" != "true" ]]; then
+  git fetch origin
+  git pull origin main
+  success "Latest code pulled."
+
+  # Self-update check: if update.sh changed, restart with the new version
+  CHANGED_FILES=$(git diff HEAD@{1} HEAD --name-only 2>/dev/null || true)
+  if echo "$CHANGED_FILES" | grep -q "^update.sh$"; then
+    echo ""
+    info "update.sh was updated — restarting with new version to apply fixes..."
+    echo ""
+    exec bash "${BASH_SOURCE[0]}" --skip-pull "$@"
+  fi
+else
+  info "Skipped git pull (restarted from self-update)."
+fi
 
 # -----------------------------------------------------------------------------
 # STEP 5: Compare changes
