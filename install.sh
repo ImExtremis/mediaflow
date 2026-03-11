@@ -666,10 +666,18 @@ pull_images() {
   fi
 
   info "Running catch-all compose pull..."
-  ${compose_cmd} pull || { warn "compose pull failed, continuing..."; true; }
+  stop_spinner >/dev/null 2>&1 || true
+  echo -e "${CYAN}[INFO]${RESET}  Running catch-all compose pull..." | tee -a "$INSTALL_DIR/logs/install.log"
   
-  success "All Docker images pulled."
-  
+  ${compose_cmd} pull > /tmp/mediaflow_pull.log 2>&1
+  local PULL_EXIT=$?
+  if [[ $PULL_EXIT -eq 0 ]]; then
+    success "All Docker images pulled."
+  else
+    error "Docker compose pull failed"
+    cat /tmp/mediaflow_pull.log
+    warn "compose pull failed, continuing..."
+  fi
   local t_taken=$(( SECONDS - INSTALL_START_TIME ))
   INSTALL_START_TIME=$SECONDS
   phase_complete "Pulling Docker images" "$t_taken"
@@ -715,7 +723,16 @@ build_images() {
     ' || warn "Build completed with some warnings/errors. Check logs." || true
     set -o pipefail
   else
-    ${compose_cmd} build --quiet || warn "Build completed with warnings/errors."
+    stop_spinner >/dev/null 2>&1 || true
+    echo -e "${CYAN}[INFO]${RESET}  Building local Dockerfiles..." | tee -a "$INSTALL_DIR/logs/install.log"
+    
+    ${compose_cmd} build --quiet > /tmp/mediaflow_build.log 2>&1
+    local BUILD_EXIT=$?
+    if [[ $BUILD_EXIT -ne 0 ]]; then
+      error "Docker compose build completed with warnings/errors"
+      cat /tmp/mediaflow_build.log
+      warn "Continuing anyway..."
+    fi
   fi
   
   success "Docker images built."
@@ -745,7 +762,6 @@ deploy_stack() {
   cd "$INSTALL_DIR"
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
-  start_spinner "Starting MediaFlow stack..." || true
   
   local SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
   local TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
@@ -757,13 +773,16 @@ deploy_stack() {
   [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
   [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
   
+  stop_spinner >/dev/null 2>&1 || true
+  echo "[INFO] Starting MediaFlow stack..." | tee -a "$INSTALL_DIR/logs/install.log"
+  
   ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
   local DEPLOY_EXIT=$?
   
   if [[ $DEPLOY_EXIT -eq 0 ]]; then
-    stop_spinner "All containers started" || true
+    success "All containers started"
   else
-    stop_spinner_fail "Docker compose up failed" || true
+    error "Docker compose up failed"
     cat /tmp/mediaflow_deploy.log
     die "Docker compose up failed (exit code $DEPLOY_EXIT)"
   fi
@@ -1064,9 +1083,17 @@ main() {
   check_disk_space
   check_ports
   
-  start_spinner "Installing dependencies..." || true
-  install_dependencies > /dev/null 2>&1
-  stop_spinner "Dependencies installed" || true
+  stop_spinner >/dev/null 2>&1 || true
+  echo -e "${CYAN}[INFO]${RESET}  Installing system dependencies..." | tee -a "$INSTALL_DIR/logs/install.log"
+  install_dependencies > /tmp/mediaflow_deps.log 2>&1
+  local DEPS_EXIT=$?
+  if [[ $DEPS_EXIT -eq 0 ]]; then
+    success "Dependencies installed"
+  else
+    error "Failed to install dependencies"
+    cat /tmp/mediaflow_deps.log
+    die "Dependencies installation failed (exit code $DEPS_EXIT)"
+  fi
   
   install_docker
   configure_docker
