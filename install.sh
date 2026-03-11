@@ -80,12 +80,37 @@ render_header() {
   for ((i=0; i<filled; i++)); do bar+="█"; done
   for ((i=0; i<empty; i++)); do bar+="░"; done
 
+  local phase_val="$CURRENT_PHASE_NAME ($CURRENT_PHASE of $TOTAL_PHASES)"
+  local phase_prefix="     Current Phase: "
+  
+  local min_innen=54
+  local req_innen=$(( ${#phase_prefix} + ${#phase_val} + 1 ))
+  local innen=$min_innen
+  if [[ $req_innen -gt $min_innen ]]; then
+    innen=$req_innen
+  fi
+
+  local border=""
+  for ((i=0; i<innen; i++)); do border+="═"; done
+
+  local title_pad=$(( innen - 29 ))
+  local title_spaces=""
+  for ((i=0; i<title_pad; i++)); do title_spaces+=" "; done
+
+  local prog_pad=$(( innen - 50 ))
+  local prog_spaces=""
+  for ((i=0; i<prog_pad; i++)); do prog_spaces+=" "; done
+
+  local phase_pad=$(( innen - ${#phase_prefix} - ${#phase_val} ))
+  local phase_spaces=""
+  for ((i=0; i<phase_pad; i++)); do phase_spaces+=" "; done
+
   echo ""
-  echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${RESET}"
-  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.2${RESET}                         ${CYAN}║${RESET}"
-  printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}    ${CYAN}║${RESET}\n" "$bar" "$percent"
-  printf "${CYAN}║${RESET}     Current Phase: %-31s ${CYAN}║${RESET}\n" "$CURRENT_PHASE_NAME ($CURRENT_PHASE of $TOTAL_PHASES)"
-  echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${RESET}"
+  echo -e "${CYAN}╔${border}╗${RESET}"
+  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.0${RESET}${title_spaces}${CYAN}║${RESET}"
+  printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}${prog_spaces}${CYAN}║${RESET}\n" "$bar" "$percent"
+  printf "${CYAN}║${RESET}${phase_prefix}%s${phase_spaces}${CYAN}║${RESET}\n" "$phase_val"
+  echo -e "${CYAN}╚${border}╝${RESET}"
 }
 
 phase_complete() {
@@ -280,8 +305,8 @@ install_dependencies() {
   info "Installing base dependencies..."
   case "$OS" in
     debian)
-      sudo apt-get update -qq
-      sudo apt-get install -y curl wget git ca-certificates gnupg lsb-release
+      sudo apt-get update -qq 2>/dev/null || true
+      sudo apt-get install -y -qq curl wget git ca-certificates gnupg lsb-release 2>/dev/null || true
       ;;
     arch)
       sudo pacman -Sy --noconfirm curl wget git
@@ -779,6 +804,7 @@ deploy_stack() {
   stop_spinner >/dev/null 2>&1 || true
   echo "[INFO] Starting MediaFlow stack..."
   
+  # Intentionally unquoted $core_services to allow word splitting of service names
   ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
   local DEPLOY_EXIT=$?
   
@@ -900,6 +926,7 @@ wait_for_services() {
   )
   local total=${#containers[@]}
   local timeout=$(( SECONDS + 180 ))
+  local last_print=0
   
   while [[ $SECONDS -lt $timeout ]]; do
     local ps_output
@@ -917,8 +944,9 @@ wait_for_services() {
     if $INTERACTIVE; then
       printf "\r${CYAN}[INFO]${RESET}  Health checks: %d/%d containers healthy...\033[K" "$healthy" "$total"
     else
-      if [[ $(( SECONDS % 15 )) -eq 0 ]]; then
+      if [[ $(( SECONDS - last_print )) -ge 15 ]]; then
         echo "Health checks: $healthy/$total containers healthy..."
+        last_print=$SECONDS
       fi
     fi
     
@@ -1096,8 +1124,10 @@ main() {
   
   stop_spinner >/dev/null 2>&1 || true
   echo -e "${CYAN}[INFO]${RESET}  Installing system dependencies..."
+  set +e
   install_dependencies > /tmp/mediaflow_deps.log 2>&1
-  local DEPS_EXIT=$?
+  DEPS_EXIT=$?
+  set -e
   if [[ $DEPS_EXIT -eq 0 ]]; then
     success "Dependencies installed"
   else
@@ -1137,4 +1167,5 @@ _SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 mkdir -p "$_SCRIPT_DIR/logs"
 touch "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
 chmod 664 "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
+set +o pipefail
 main "$@" 2>&1 | tee -a "$_SCRIPT_DIR/logs/install.log" || true
