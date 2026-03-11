@@ -56,15 +56,17 @@ export default function Setup() {
     return (
         <div className="auth-page">
             <div className="auth-card fade-in">
-                <div className="auth-header">
+                <div className="auth-header" style={{ textAlign: 'center' }}>
+                    <img src="/logo.png" alt="MediaFlow Logo" style={{ width: '64px', height: '64px', margin: '0 auto 15px auto', display: 'block' }} />
                     <h1>MediaFlow Setup</h1>
                     <p>Welcome! Let's configure your admin account.</p>
                 </div>
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="form-group">
-                        <label>Display Name</label>
+                        <label className="form-label">Display Name</label>
                         <input
                             type="text"
+                            className="form-input"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="e.g. John Doe"
@@ -72,9 +74,10 @@ export default function Setup() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Username</label>
+                        <label className="form-label">Username</label>
                         <input
                             type="text"
+                            className="form-input"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="admin"
@@ -82,24 +85,26 @@ export default function Setup() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Password</label>
+                        <label className="form-label">Password</label>
                         <input
                             type="password"
+                            className="form-input"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
                     </div>
                     <div className="form-group">
-                        <label>Confirm Password</label>
+                        <label className="form-label">Confirm Password</label>
                         <input
                             type="password"
+                            className="form-input"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                         />
                     </div>
-                    <button type="submit" className="btn-primary" disabled={isLoading}>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '10px' }} disabled={isLoading}>
                         {isLoading ? 'Creating...' : 'Create Admin Account'}
                     </button>
                 </form>

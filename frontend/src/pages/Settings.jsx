@@ -5,11 +5,14 @@ import { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
 import { showToast } from '../App';
 import { Download, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function Settings() {
     const { config, updateConfig, loading } = useConfig();
     const [history, setHistory] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(true);
+
+    const token = localStorage.getItem('mediaflow_token');
 
     const [updateInfo, setUpdateInfo] = useState(null);
     const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -20,7 +23,7 @@ export default function Settings() {
     const checkForUpdates = async (silent = false) => {
         if (!silent) setCheckingUpdate(true);
         try {
-            const res = await fetch('/api/update/check');
+            const res = await apiFetch('/api/update/check');
             const data = await res.json();
             setUpdateInfo(data);
             if (!silent && !data.updateAvailable) {
@@ -35,19 +38,20 @@ export default function Settings() {
 
     useEffect(() => {
         checkForUpdates(true);
-        fetch('/api/update/history')
+        apiFetch('/api/update/history')
             .then(res => res.json())
-            .then(data => setHistory(data))
+            .then(data => setHistory(Array.isArray(data) ? data : []))
             .catch(err => console.error(err))
             .finally(() => setHistoryLoading(false));
     }, []);
 
+    if (!token) return <div className="page-container"><div className="empty-state"><h2>Access Denied</h2></div></div>;
     if (loading) return <div className="page-container"><div className="spinner" style={{ margin: '0 auto' }} /></div>;
 
     const handleChannelChange = (e) => {
         const val = e.target.value;
         updateConfig('updateChannel', val);
-        fetch('/api/config', {
+        apiFetch('/api/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ updateChannel: val })
@@ -66,12 +70,10 @@ export default function Settings() {
         }
         setStartingUpdate(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/update/verify-and-start', {
+            const res = await apiFetch('/api/update/verify-and-start', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ password: adminPassword })
             });
@@ -187,7 +189,7 @@ export default function Settings() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((item, i) => (
+                                {(Array.isArray(history) ? history : []).map((item, i) => (
                                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                         <td style={{ padding: '12px 0' }}>{new Date(item.timestamp).toLocaleString()}</td>
                                         <td>{item.previousVersion} ➔ {item.newVersion}</td>

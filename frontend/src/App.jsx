@@ -24,6 +24,7 @@ import Setup from './pages/Setup.jsx';
 import Navbar from './components/Navbar.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { Navigate } from 'react-router-dom';
+import { apiFetch } from './utils/api';
 
 const NAV = [
     {
@@ -124,7 +125,7 @@ function Sidebar() {
     const { user } = useAuth();
 
     useEffect(() => {
-        fetch('/api/update/check')
+        apiFetch('/api/update/check')
             .then(res => res.json())
             .then(data => {
                 if (data.currentVersion) setVersion(data.currentVersion);
@@ -151,7 +152,12 @@ function Sidebar() {
 
     return (
         <aside className="sidebar">
-            <div className="sidebar-logo" style={{ display: 'none' }}>
+            <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img src="/logo.png" alt="MediaFlow" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
+                <div>
+                    <h1>MediaFlow</h1>
+                    <p style={{ margin: 0 }}>Dashboard</p>
+                </div>
             </div>
 
             <nav className="sidebar-nav" style={{ paddingTop: '20px' }}>

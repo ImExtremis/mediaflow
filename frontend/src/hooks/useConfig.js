@@ -3,6 +3,7 @@
 //  Fetches and updates config.json via the backend API
 // =============================================================================
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '../utils/api';
 
 const API = '/api';
 
@@ -15,7 +16,7 @@ export function useConfig() {
     const fetchConfig = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch(`${API}/config`);
+            const res = await apiFetch(`${API}/config`);
             const data = await res.json();
             setConfig(data);
             setError(null);
@@ -35,7 +36,7 @@ export function useConfig() {
 
     const saveConfig = useCallback(async () => {
         try {
-            const res = await fetch(`${API}/config`, {
+            const res = await apiFetch(`${API}/config`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(config),

@@ -3,6 +3,7 @@
 // =============================================================================
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../App.jsx';
+import { apiFetch } from '../utils/api';
 
 function IndexerRow({ indexer, onToggle }) {
     const enabled = indexer.enabled !== false;
@@ -58,7 +59,7 @@ export default function Indexers() {
     const fetchIndexers = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/indexers');
+            const res = await apiFetch('/api/indexers');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             // data may be an error object if Prowlarr isn't up yet
@@ -81,9 +82,8 @@ export default function Indexers() {
 
     const handleToggle = async (id, enabled) => {
         try {
-            const res = await fetch(`/api/proxy/prowlarr/api/v1/indexer/${id}`, {
+            const res = await apiFetch(`/api/proxy/prowlarr/api/v1/indexer/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enable: enabled }),
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -97,7 +97,7 @@ export default function Indexers() {
     const handleSyncAll = async () => {
         try {
             showToast('Triggering Prowlarr Sync...', 'info');
-            const res = await fetch('/api/indexers/sync', { method: 'POST' });
+            const res = await apiFetch('/api/indexers/sync', { method: 'POST' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             showToast('Sync triggered successfully!', 'success');
         } catch (err) {

@@ -35,7 +35,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - sonarr_config:/config
       - ./data:/data
@@ -58,7 +58,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - radarr_config:/config
       - ./data:/data
@@ -81,7 +81,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - prowlarr_config:/config
       - ./data:/data
@@ -104,7 +104,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
       - WEBUI_PORT=8080
       - TORRENTING_PORT=6881
     volumes:
@@ -134,7 +134,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - jellyfin_config:/config
       - jellyfin_cache:/cache
@@ -160,7 +160,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - bazarr_config:/config
       - ./data/media:/data/media
@@ -183,7 +183,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - sonarr_anime_config:/config
       - ./data:/data
@@ -206,7 +206,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
     volumes:
       - overseerr_config:/app/config
     ports:
@@ -228,7 +228,7 @@ services:
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
       - serverIP=0.0.0.0
       - serverPort=8266
       - webUIPort=8265
@@ -259,7 +259,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${BACKEND_PORT:-3001}
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
       - SONARR_URL=http://sonarr:8989
       - RADARR_URL=http://radarr:7878
       - PROWLARR_URL=http://prowlarr:9696
@@ -303,4 +303,4 @@ services:
     depends_on:
       - backend
     environment:
-      - TZ=${TZ:-America/New_York}
+      - TZ=${TZ:-UTC}
