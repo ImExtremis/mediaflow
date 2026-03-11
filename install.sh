@@ -184,8 +184,8 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.2.1${RESET}"
-  echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Overseerr · Tdarr"
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.0${RESET}"
+  echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr"
   echo ""
 }
 
@@ -327,8 +327,8 @@ install_docker() {
 configure_docker() {
   if [[ "$OS" != "macos" ]]; then
     info "Enabling Docker service to start on boot..."
-    sudo systemctl enable docker
-    sudo systemctl start docker
+    sudo systemctl enable docker >/dev/null 2>&1
+    sudo systemctl start docker >/dev/null 2>&1
     # Allow current user to run docker without sudo
     if ! groups "$USER" | grep -q docker; then
       sudo usermod -aG docker "$USER"
@@ -356,7 +356,7 @@ configure_firewall() {
 
   if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; then
     for port in "${ports[@]}"; do
-      sudo ufw allow "$port/tcp" 2>/dev/null && info "  ufw: opened port $port/tcp"
+      sudo ufw allow "$port/tcp" >/dev/null 2>&1 || true
     done
     success "UFW firewall rules added"
   elif command -v firewall-cmd &>/dev/null; then
@@ -468,7 +468,7 @@ setup_permissions() {
     "$INSTALL_DIR/appdata/qbittorrent/qBittorrent"
     "$INSTALL_DIR/appdata/jellyfin"
     "$INSTALL_DIR/appdata/bazarr"
-    "$INSTALL_DIR/appdata/overseerr"
+    "$INSTALL_DIR/appdata/jellyseerr"
     "$INSTALL_DIR/appdata/tdarr/server"
   )
 
@@ -486,6 +486,9 @@ setup_permissions() {
   # Fix for root-owned logs directory preventing log_to_file calls inside this function
   sudo chown -R "${SUDO_USER:-$USER}" "$INSTALL_DIR/logs" 2>/dev/null || true
 
+  # Avoid breaking if yt-downloads does not exist yet
+  sudo mkdir -p "$INSTALL_DIR/data/yt-downloads"
+  
   if [[ -f "$INSTALL_DIR/config/qBittorrent.conf" ]]; then
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
   fi
@@ -724,11 +727,21 @@ deploy_stack() {
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
   start_spinner "Starting MediaFlow stack..." || true
-  if ${compose_cmd} up -d > /tmp/mediaflow_deploy.log 2>&1; then
+  
+  local SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
+  local TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
+  local BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
+
+  # Define specific services to start based on toggles
+  local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
+  [[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
+  [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
+  [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
+  
+  if ${compose_cmd} up -d $core_services > /dev/null 2>&1; then
     stop_spinner "All containers started" || true
   else
     stop_spinner "Failed to start MediaFlow stack" || true
-    cat /tmp/mediaflow_deploy.log
     die "Docker compose up failed"
   fi
 
@@ -737,13 +750,15 @@ deploy_stack() {
   
   local passed=()
   local failed=()
-  for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
+  for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_jellyseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
     local cname="${container%%:*}"
     local cpath="${container##*:}"
-    if ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
-       passed+=("$cname")
-    else
-       failed+=("$cname")
+    if ${DOCKER_CMD:-docker} inspect "$cname" >/dev/null 2>&1; then
+      if ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
+         passed+=("$cname")
+      else
+         failed+=("$cname")
+      fi
     fi
   done
 
@@ -757,11 +772,13 @@ deploy_stack() {
     sleep 2
     
     failed=()
-    for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
+    for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_jellyseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
       local cname="${container%%:*}"
       local cpath="${container##*:}"
-      if ! ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
-         failed+=("$cname")
+      if ${DOCKER_CMD:-docker} inspect "$cname" >/dev/null 2>&1; then
+        if ! ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
+           failed+=("$cname")
+        fi
       fi
     done
     
@@ -834,7 +851,7 @@ wait_for_services() {
   local containers=(
     "mediaflow_radarr" "mediaflow_sonarr" "mediaflow_qbittorrent"
     "mediaflow_jellyfin" "mediaflow_prowlarr" "mediaflow_bazarr"
-    "mediaflow_overseerr" "mediaflow_tdarr" "mediaflow_sonarr-anime"
+    "mediaflow_jellyseerr" "mediaflow_tdarr" "mediaflow_sonarr-anime"
   )
   local total=${#containers[@]}
   local timeout=$(( SECONDS + 180 ))
@@ -918,34 +935,86 @@ print_summary() {
   
   local bazarr_port=$(grep "^BAZARR_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "6767")
   local sonarr_anime_port=$(grep "^SONARR_ANIME_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "8990")
-  local overseerr_port=$(grep "^OVERSEERR_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "5055")
+  local jellyseerr_port=$(grep "^JELLYSEERR_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "5055")
   local tdarr_port=$(grep "^TDARR_UI_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "8265")
 
   local total_mins=$(( SECONDS / 60 ))
   local total_secs=$(( SECONDS % 60 ))
 
+  local raw_lines=(
+    "  🎉  MediaFlow v1.4.0 installed successfully!"
+    "  ⏱  Total time: $total_mins minutes $total_secs seconds"
+    "  Dashboard      →  http://$host_ip:$dashboard_port"
+    "  Radarr         →  http://$host_ip:$radarr_port"
+    "  Sonarr         →  http://$host_ip:$sonarr_port"
+    "  Sonarr Anime   →  http://$host_ip:$sonarr_anime_port"
+    "  Prowlarr       →  http://$host_ip:$prowlarr_port"
+    "  qBittorrent    →  http://$host_ip:$qbit_port"
+    "  Jellyfin       →  http://$host_ip:$jellyfin_port"
+    "  Bazarr         →  http://$host_ip:$bazarr_port"
+    "  Jellyseerr     →  http://$host_ip:$jellyseerr_port"
+    "  Tdarr          →  http://$host_ip:$tdarr_port"
+    "  YouTube        →  ./data/yt-downloads"
+    "  qBittorrent credentials:"
+    "  Username: admin"
+    "  Password: ${QBIT_PASS:0:42}"
+    "  ⚠  Change default passwords after first login"
+  )
+
+  local max_len=0
+  for line in "${raw_lines[@]}"; do
+    local len=${#line}
+    if [[ $len -gt $max_len ]]; then
+      max_len=$len
+    fi
+  done
+
+  local box_width=$((max_len + 4))
+  
+  local top_border=""
+  local div_border=""
+  local bot_border=""
+  for ((i=0; i<box_width; i++)); do
+    top_border+="═"
+    div_border+="═"
+    bot_border+="═"
+  done
+
+  # helper to print line
+  print_line() {
+    local raw_text="$1"
+    local ansi_text="$2"
+    local pad_len=$(( box_width - 4 - ${#raw_text} ))
+    local pad=""
+    if [[ $pad_len -gt 0 ]]; then
+      for ((i=0; i<pad_len; i++)); do pad+=" "; done
+    fi
+    echo -e "${GREEN}║${RESET}  ${ansi_text}${pad}  ${GREEN}║${RESET}"
+  }
+
   echo ""
-  echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${RESET}"
-  echo -e "${GREEN}║${RESET}  🎉  ${BOLD}MediaFlow v1.2 installed successfully!${RESET}              ${GREEN}║${RESET}"
-  printf "${GREEN}║${RESET}  ⏱  Total time: %d minutes %d seconds                    ${GREEN}║${RESET}\n" "$total_mins" "$total_secs"
-  echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Dashboard" "$host_ip" "$dashboard_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Radarr" "$host_ip" "$radarr_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Sonarr" "$host_ip" "$sonarr_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Sonarr Anime" "$host_ip" "$sonarr_anime_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Prowlarr" "$host_ip" "$prowlarr_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "qBittorrent" "$host_ip" "$qbit_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Jellyfin" "$host_ip" "$jellyfin_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Bazarr" "$host_ip" "$bazarr_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Overseerr" "$host_ip" "$overseerr_port"
-  printf "${GREEN}║${RESET}  %-14s →  ${CYAN}http://%s:%-5s${RESET}                  ${GREEN}║${RESET}\n" "Tdarr" "$host_ip" "$tdarr_port"
-  echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
-  echo -e "${GREEN}║${RESET}  ${BOLD}qBittorrent credentials:${RESET}                               ${GREEN}║${RESET}"
-  echo -e "${GREEN}║${RESET}  Username: ${YELLOW}admin${RESET}                                        ${GREEN}║${RESET}"
-  printf "${GREEN}║${RESET}  Password: ${RED}%-42s${RESET} ${GREEN}║${RESET}\n" "${QBIT_PASS:0:42}"
-  echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${RESET}"
-  echo -e "${GREEN}║${RESET}  ${YELLOW}⚠  Change default passwords after first login${RESET}         ${GREEN}║${RESET}"
-  echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}"
+  echo -e "${GREEN}╔${top_border}╗${RESET}"
+  print_line "${raw_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.0 installed successfully!${RESET}"
+  print_line "${raw_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
+  echo -e "${GREEN}╠${div_border}╣${RESET}"
+  print_line "${raw_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"
+  print_line "${raw_lines[3]}" "Radarr         →  ${CYAN}http://$host_ip:$radarr_port${RESET}"
+  print_line "${raw_lines[4]}" "Sonarr         →  ${CYAN}http://$host_ip:$sonarr_port${RESET}"
+  print_line "${raw_lines[5]}" "Sonarr Anime   →  ${CYAN}http://$host_ip:$sonarr_anime_port${RESET}"
+  print_line "${raw_lines[6]}" "Prowlarr       →  ${CYAN}http://$host_ip:$prowlarr_port${RESET}"
+  print_line "${raw_lines[7]}" "qBittorrent    →  ${CYAN}http://$host_ip:$qbit_port${RESET}"
+  print_line "${raw_lines[8]}" "Jellyfin       →  ${CYAN}http://$host_ip:$jellyfin_port${RESET}"
+  print_line "${raw_lines[9]}" "Bazarr         →  ${CYAN}http://$host_ip:$bazarr_port${RESET}"
+  print_line "${raw_lines[10]}" "Jellyseerr     →  ${CYAN}http://$host_ip:$jellyseerr_port${RESET}"
+  print_line "${raw_lines[11]}" "Tdarr          →  ${CYAN}http://$host_ip:$tdarr_port${RESET}"
+  print_line "${raw_lines[12]}" "YouTube        →  ${CYAN}./data/yt-downloads${RESET}"
+  echo -e "${GREEN}╠${div_border}╣${RESET}"
+  print_line "${raw_lines[13]}" "${BOLD}qBittorrent credentials:${RESET}"
+  print_line "${raw_lines[14]}" "Username: ${YELLOW}admin${RESET}"
+  print_line "${raw_lines[15]}" "Password: ${RED}${QBIT_PASS:0:42}${RESET}"
+  echo -e "${GREEN}╠${div_border}╣${RESET}"
+  print_line "${raw_lines[16]}" "${YELLOW}⚠  Change default passwords after first login${RESET}"
+  echo -e "${GREEN}╚${bot_border}╝${RESET}"
   echo ""
 }
 

@@ -1,9 +1,10 @@
 # MediaFlow – Self-Hosted Media Automation Dashboard
 
+
 > One-command install for a complete arr-stack with a beautiful unified config dashboard.
 
 ```
-Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Overseerr · Tdarr
+Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr
 ```
 
 ---
@@ -31,6 +32,18 @@ That's it. The script handles everything automatically:
 - Ubuntu 20.04+, Debian 11+, Arch Linux, or macOS 12+
 - ≥10 GB free disk space (30GB+ recommended for media)
 - `sudo` access
+![Version](https://img.shields.io/badge/Version-1.4.0-blue)
+
+## 🔥 v1.4.0 Changelog: The Automation & UI Update
+
+- **Trending Auto-Downloads:** A fully automatic background scheduler that fetches daily trending movies and TV shows from the free TMDB API and adds them immediately to Radarr and Sonarr.
+- **Trending Dashboard Page:** A beautiful visual grid showing current trending content along with its library status (Available, Downloading, or Missing). One-click to add anything you're missing.
+  - *Note: To use Trending features, you must get a free API key from [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api) and add `TMDB_API_KEY=` to your `.env` file.*
+- **YouTube Downloader:** A dedicated `yt-dlp` container for grabbing YouTube videos. Submits directly from the new Dashboard "YouTube" tab with format and quality selectors. All videos save to the new `./data/yt-downloads` folder.
+- **Service Power Toggles:** New switches in Settings to pause/resume heavy containers like Sonarr Anime, Tdarr, and Bazarr on the fly to save server resources.
+- **Jellyseerr Integration:** We permanently replaced Overseerr with Jellyseerr because Jellyseerr natively supports Jellyfin libraries without requiring a Plex account for authentication.
+- **Installer Polish:** The installer now uses clean animated spinners instead of verbose log spam, and dynamically calculates the perfect summary box size based on terminal width.
+- **Brand Identity:** A beautiful new `Media flow.png` logo implemented across the site.
 
 ## 🚀 v1.3.0 Changelog: The Security Update
 
@@ -47,7 +60,7 @@ That's it. The script handles everything automatically:
 - **Bazarr Subtitles:** Automated subtitle downloading tailored for Movies-Shows (Hindi/English) and Anime (English). *Note: Hinglish is not a recognized language code in subtitle databases, so a Hindi+English combination profile is used instead as the closest equivalent.*
 - **Dedicated Anime Sonarr:** A separate `sonarr-anime` instance automatically configured with Prowlarr to explicitly sync from Nyaa.si and AniDex, applying a preferred SubsPlease/Erai-raws Quality Profile.
 - **Auto Transcoding (Tdarr):** Integrated Tdarr explicitly set to seamlessly transcode files >10GB to x265 HEVC, preserving all audio/subtitle tracks.
-- **Media Requests (Overseerr):** Easily request content via the new Overseerr container, connected instantly to Radarr, Sonarrs, and Jellyfin.
+- **Media Requests (Jellyseerr):** Easily request content via the new Jellyseerr container, connected instantly to Radarr, Sonarrs, and Jellyfin. Note: Jellyseerr is used because it natively supports Jellyfin without requiring a Plex account.
 - **Dashboard Enhancements:** 
   - Real-time Health Monitor (disk space, container statuses, active speeds).
   - Built-in "Watch" tab via Jellyfin iframe player.
@@ -68,8 +81,9 @@ That's it. The script handles everything automatically:
 | **Prowlarr** | `http://server:9696` | No auth (set in Settings) |
 | **qBittorrent** | `http://server:8082` | `admin` / **(check install summary)** |
 | **Bazarr** | `http://server:6767` | No auth (set in Settings) |
-| **Overseerr** | `http://server:5055` | Plex/Jellyfin Login |
+| **Jellyseerr** | `http://server:5055` | Jellyfin Login |
 | **Tdarr** | `http://server:8265` | No login |
+| **YouTube DL** | `./data/yt-downloads` | Handled by Backend API |
 
 ---
 

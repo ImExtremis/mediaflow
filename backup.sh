@@ -40,6 +40,11 @@ do_backup() {
   [[ -f "$INSTALL_DIR/config/config.json" ]] && items+=("config/config.json")
   [[ -f "$INSTALL_DIR/.env" ]]               && items+=(".env")
   [[ -f "$INSTALL_DIR/docker-compose.yml" ]] && items+=("docker-compose.yml")
+  
+  if [[ -d "$INSTALL_DIR/data/yt-downloads" ]]; then
+    warn "Including ./data/yt-downloads in backup. Note: this may be large."
+    items+=("data/yt-downloads")
+  fi
 
   if [[ ${#items[@]} -eq 0 ]]; then
     die "Nothing to back up. Is MediaFlow installed?"

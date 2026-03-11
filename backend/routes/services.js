@@ -107,4 +107,87 @@ router.get('/:id', async (req, res) => {
     res.json(result);
 });
 
+// Helper for unix socket curl essentially
+const callDockerSocket = async (method, path) => {
+    return axios({
+        method,
+        socketPath: '/var/run/docker.sock',
+        url: `http://localhost/v1.41${path}`
+    });
+};
+
+// POST /api/services/:id/suspend
+router.post('/:id/suspend', async (req, res) => {
+    if (req.user && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    
+    const id = req.params.id;
+    const allowedMap = {
+        'sonarr-anime': 'mediaflow_sonarr_anime',
+        'tdarr': 'mediaflow_tdarr',
+        'bazarr': 'mediaflow_bazarr'
+    };
+
+    const containerName = allowedMap[id];
+    if (!containerName) return res.status(400).json({ error: 'Service cannot be toggled' });
+
+    try {
+        await callDockerSocket('POST', `/containers/${containerName}/stop`);
+        
+        // Update .env
+        const envPath = require('path').join(__dirname, '../../.env');
+        const fs = require('fs');
+        if (fs.existsSync(envPath)) {
+            let envContent = fs.readFileSync(envPath, 'utf8');
+            const envKey = `${id.toUpperCase().replace('-', '_')}_ENABLED`;
+            if (envContent.includes(envKey + '=')) {
+                envContent = envContent.replace(new RegExp(`${envKey}=.*`, 'g'), `${envKey}=false`);
+            } else {
+                envContent += `\n${envKey}=false\n`;
+            }
+            fs.writeFileSync(envPath, envContent);
+        }
+        res.json({ success: true, message: `${id} suspended` });
+    } catch (e) {
+        console.error(`Failed to suspend ${id}:`, e.message);
+        res.status(500).json({ error: 'Failed to suspend container' });
+    }
+});
+
+// POST /api/services/:id/resume
+router.post('/:id/resume', async (req, res) => {
+    if (req.user && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    
+    const id = req.params.id;
+    const allowedMap = {
+        'sonarr-anime': 'mediaflow_sonarr_anime',
+        'tdarr': 'mediaflow_tdarr',
+        'bazarr': 'mediaflow_bazarr'
+    };
+
+    const containerName = allowedMap[id];
+    if (!containerName) return res.status(400).json({ error: 'Service cannot be toggled' });
+
+    try {
+        await callDockerSocket('POST', `/containers/${containerName}/start`);
+        
+        // Update .env
+        const envPath = require('path').join(__dirname, '../../.env');
+        const fs = require('fs');
+        if (fs.existsSync(envPath)) {
+            let envContent = fs.readFileSync(envPath, 'utf8');
+            const envKey = `${id.toUpperCase().replace('-', '_')}_ENABLED`;
+            if (envContent.includes(envKey + '=')) {
+                envContent = envContent.replace(new RegExp(`${envKey}=.*`, 'g'), `${envKey}=true`);
+            } else {
+                envContent += `\n${envKey}=true\n`;
+            }
+            fs.writeFileSync(envPath, envContent);
+        }
+        res.json({ success: true, message: `${id} resumed` });
+    } catch (e) {
+        console.error(`Failed to resume ${id}:`, e.message);
+        res.status(500).json({ error: 'Failed to resume container' });
+    }
+});
+
 module.exports = router;

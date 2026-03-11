@@ -48,7 +48,7 @@ auto_rollback() {
   echo -e "${BOLD}${RED}UPDATE FAILED — INITIATING AUTO ROLLBACK${RESET}"
   
   info "Stopping containers..."
-  docker compose down || true
+  docker compose down >/dev/null 2>&1 || true
 
   info "Restoring files from backup ($BACKUP_DIR)..."
   if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
@@ -157,7 +157,7 @@ success "Images pulled."
 # STEP 8: Stop containers gracefully
 # -----------------------------------------------------------------------------
 info "Step 8: Stopping containers..."
-docker compose down --timeout 30
+docker compose down --timeout 30 >/dev/null 2>&1
 success "Containers stopped."
 
 # -----------------------------------------------------------------------------
@@ -174,7 +174,16 @@ success "Frontend and backend rebuilt successfully."
 # STEP 10: Start containers
 # -----------------------------------------------------------------------------
 info "Step 10: Starting containers..."
-docker compose up -d
+local SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+local TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+local BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+
+local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
+[[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
+[[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
+[[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
+
+docker compose up -d $core_services
 success "Containers started."
 
 # -----------------------------------------------------------------------------
