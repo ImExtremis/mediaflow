@@ -25,10 +25,13 @@ fi
 
 # ─── Basic Logging ───────────────────────────────────────────────────────────
 timestamp() { date +"%Y-%m-%d %H:%M:%S"; }
+LOG_FILE=""
+safe_log() {
+  [[ -n "$LOG_FILE" ]] && echo "$*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
 log_to_file() { 
-  if [[ -n "${INSTALL_DIR:-}" ]] && [[ -d "${INSTALL_DIR}/logs" ]]; then
-    echo "[$(timestamp)] $*" >> "$INSTALL_DIR/logs/install.log"
-  fi
+  safe_log "[$(timestamp)] $*"
 }
 
 info()    { echo -e "${CYAN}[INFO]${RESET}  $*"; log_to_file "[INFO] $*"; }
@@ -320,7 +323,7 @@ install_docker() {
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
         https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") \
         $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-        | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || true
       sudo apt-get update -qq
       sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       ;;
@@ -667,7 +670,7 @@ pull_images() {
 
   info "Running catch-all compose pull..."
   stop_spinner >/dev/null 2>&1 || true
-  echo -e "${CYAN}[INFO]${RESET}  Running catch-all compose pull..." | tee -a "$INSTALL_DIR/logs/install.log"
+  echo -e "${CYAN}[INFO]${RESET}  Running catch-all compose pull..."
   
   ${compose_cmd} pull > /tmp/mediaflow_pull.log 2>&1
   local PULL_EXIT=$?
@@ -724,7 +727,7 @@ build_images() {
     set -o pipefail
   else
     stop_spinner >/dev/null 2>&1 || true
-    echo -e "${CYAN}[INFO]${RESET}  Building local Dockerfiles..." | tee -a "$INSTALL_DIR/logs/install.log"
+    echo -e "${CYAN}[INFO]${RESET}  Building local Dockerfiles..."
     
     ${compose_cmd} build --quiet > /tmp/mediaflow_build.log 2>&1
     local BUILD_EXIT=$?
@@ -774,7 +777,7 @@ deploy_stack() {
   [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
   
   stop_spinner >/dev/null 2>&1 || true
-  echo "[INFO] Starting MediaFlow stack..." | tee -a "$INSTALL_DIR/logs/install.log"
+  echo "[INFO] Starting MediaFlow stack..."
   
   ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
   local DEPLOY_EXIT=$?
@@ -1063,12 +1066,15 @@ print_summary() {
 # ─── Main ────────────────────────────────────────────────────────────────────
 main() {
   INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  LOG_FILE="$INSTALL_DIR/logs/install.log"
   
   if [[ -d "${INSTALL_DIR}/logs" ]] && [[ ! -w "${INSTALL_DIR}/logs" ]]; then
     sudo chown -R "$(whoami):$(whoami)" "${INSTALL_DIR}/logs" "${INSTALL_DIR}/state" "${INSTALL_DIR}/backups" 2>/dev/null || true
   fi
   
   mkdir -p "$INSTALL_DIR/logs"
+  touch "$LOG_FILE" 2>/dev/null || true
+  chmod 664 "$LOG_FILE" 2>/dev/null || true
   {
   
   if $INTERACTIVE; then clear; fi
@@ -1089,7 +1095,7 @@ main() {
   check_ports
   
   stop_spinner >/dev/null 2>&1 || true
-  echo -e "${CYAN}[INFO]${RESET}  Installing system dependencies..." | tee -a "$INSTALL_DIR/logs/install.log"
+  echo -e "${CYAN}[INFO]${RESET}  Installing system dependencies..."
   install_dependencies > /tmp/mediaflow_deps.log 2>&1
   local DEPS_EXIT=$?
   if [[ $DEPS_EXIT -eq 0 ]]; then
@@ -1124,7 +1130,11 @@ main() {
   get_qbit_password
   automate_configurations
   print_summary
-  } 2>&1 | tee -a "$INSTALL_DIR/logs/install.log" || true
+  }
 }
 
-main "$@"
+_SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+mkdir -p "$_SCRIPT_DIR/logs"
+touch "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
+chmod 664 "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
+main "$@" 2>&1 | tee -a "$_SCRIPT_DIR/logs/install.log" || true
