@@ -1097,14 +1097,13 @@ main() {
   LOG_FILE="$INSTALL_DIR/logs/install.log"
   
   if [[ -d "${INSTALL_DIR}/logs" ]] && [[ ! -w "${INSTALL_DIR}/logs" ]]; then
-    sudo chown -R "$(whoami):$(whoami)" "${INSTALL_DIR}/logs" "${INSTALL_DIR}/state" "${INSTALL_DIR}/backups" 2>/dev/null || true
+    sudo chown -R "$(whoami):$(whoami)" "${INSTALL_DIR}/logs" 2>/dev/null || true
   fi
-  
   mkdir -p "$INSTALL_DIR/logs"
   touch "$LOG_FILE" 2>/dev/null || true
+  chown "$(whoami)" "$LOG_FILE" 2>/dev/null || true
   chmod 664 "$LOG_FILE" 2>/dev/null || true
-  {
-  
+
   if $INTERACTIVE; then clear; fi
   print_banner || true
 
@@ -1116,14 +1115,14 @@ main() {
   echo ""
   
   TOTAL_PHASES=7
+  INSTALL_START_TIME=$SECONDS
 
   render_header "System Setup" || true
   detect_os
   check_disk_space
   check_ports
-  
-  stop_spinner >/dev/null 2>&1 || true
-  echo -e "${CYAN}[INFO]${RESET}  Installing system dependencies..."
+
+  echo "[INFO]  Installing system dependencies..."
   set +e
   install_dependencies > /tmp/mediaflow_deps.log 2>&1
   DEPS_EXIT=$?
@@ -1135,7 +1134,7 @@ main() {
     cat /tmp/mediaflow_deps.log
     die "Dependencies installation failed (exit code $DEPS_EXIT)"
   fi
-  
+
   install_docker
   configure_docker
 
@@ -1147,11 +1146,11 @@ main() {
   configure_mediaflow_user
   generate_api_keys
   configure_firewall
-  
+
   local t_taken=$(( SECONDS - INSTALL_START_TIME ))
   INSTALL_START_TIME=$SECONDS
   phase_complete "System Setup" "$t_taken"
-  
+
   setup_permissions
   pull_images
   build_images
@@ -1160,12 +1159,12 @@ main() {
   get_qbit_password
   automate_configurations
   print_summary
-  }
 }
 
 _SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 mkdir -p "$_SCRIPT_DIR/logs"
 touch "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
+chown "$(whoami)" "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
 chmod 664 "$_SCRIPT_DIR/logs/install.log" 2>/dev/null || true
 set +o pipefail
 main "$@" 2>&1 | tee -a "$_SCRIPT_DIR/logs/install.log" || true
