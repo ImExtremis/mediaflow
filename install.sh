@@ -512,6 +512,9 @@ setup_permissions() {
   done
   echo ""
 
+  # Explicitly apply permissions to sonarr-anime to prevent Permission Denied errors
+  sudo chown -R "$TARGET_UID:$TARGET_GID" "$INSTALL_DIR/appdata/sonarr-anime"
+  sudo chmod -R 775 "$INSTALL_DIR/appdata/sonarr-anime"
   
   success "Directories created and permissions configured."
   
@@ -720,27 +723,57 @@ deploy_stack() {
   cd "$INSTALL_DIR"
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
-  ${compose_cmd} up -d
+  start_spinner "Starting MediaFlow stack..." || true
+  if ${compose_cmd} up -d > /tmp/mediaflow_deploy.log 2>&1; then
+    stop_spinner "All containers started" || true
+  else
+    stop_spinner "Failed to start MediaFlow stack" || true
+    cat /tmp/mediaflow_deploy.log
+    die "Docker compose up failed"
+  fi
 
   info "Running post-start permission verification loop..."
   sleep 5
   
-  local failed=0
+  local passed=()
+  local failed=()
   for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
     local cname="${container%%:*}"
     local cpath="${container##*:}"
     if ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
-       echo -e "  ${GREEN}✓${RESET} $cname -> $cpath"
+       passed+=("$cname")
     else
-       echo -e "  ${RED}✗${RESET} $cname -> $cpath (Permission Denied)"
-       failed=1
+       failed+=("$cname")
     fi
   done
 
-  if [[ $failed -eq 1 ]]; then
-    echo -e "${BOLD}${RED}[ERROR] Permission verification failed. Container(s) cannot write! Please run ./fix-permissions.sh manually to fix this.${RESET}"
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    local failed_list
+    failed_list=$(printf "%s\n" "${failed[@]}" | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+    echo -e "${RED}[ERROR] Permission denied on: ${failed_list}. Please run ./fix-permissions.sh.${RESET}"
+    
+    info "Attempting automatic fix with fix-permissions.sh..."
+    bash "${INSTALL_DIR}/fix-permissions.sh" || true
+    sleep 2
+    
+    failed=()
+    for container in "mediaflow_radarr:/config" "mediaflow_radarr:/data" "mediaflow_sonarr:/config" "mediaflow_sonarr:/data" "mediaflow_sonarr-anime:/config" "mediaflow_sonarr-anime:/data" "mediaflow_prowlarr:/config" "mediaflow_qbittorrent:/config" "mediaflow_qbittorrent:/data" "mediaflow_jellyfin:/config" "mediaflow_bazarr:/config" "mediaflow_bazarr:/data" "mediaflow_overseerr:/app/config" "mediaflow_tdarr:/app/configs"; do
+      local cname="${container%%:*}"
+      local cpath="${container##*:}"
+      if ! ${DOCKER_CMD:-docker} exec "$cname" sh -c "touch $cpath/.write_test && rm $cpath/.write_test" 2>/dev/null; then
+         failed+=("$cname")
+      fi
+    done
+    
+    if [[ ${#failed[@]} -gt 0 ]]; then
+      local failed_list2
+      failed_list2=$(printf "%s\n" "${failed[@]}" | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+      echo -e "${BOLD}${RED}[ERROR] Verification still failed on: ${failed_list2}. Please fix manually.${RESET}"
+    else
+      echo -e "${GREEN}[OK] All containers have correct permissions${RESET}"
+    fi
   else
-    success "Permission verification passed for all containers."
+    echo -e "${GREEN}[OK] All containers have correct permissions${RESET}"
   fi
 
   success "MediaFlow stack is running!"
@@ -789,111 +822,63 @@ get_qbit_password() {
 # ─── Wait for Services ───────────────────────────────────────────────────────
 wait_for_services() {
   render_header "Health Checks" || true
-  info "Waiting for containers to become healthy..."
   
-  if ! $INTERACTIVE; then
-    local services=("sonarr:8989" "radarr:7878" "prowlarr:9696" "qbittorrent:8080" "jellyfin:8096" "bazarr:6767" "overseerr:5055" "tdarr:8265" "sonarr-anime:8990")
-    local retries=30
-    while [[ $retries -gt 0 ]]; do
-      ((retries--)) || true
-      local statuses=()
-      local all_ready=true
-      for svc in "${services[@]}"; do
-        local name="${svc%%:*}"
-        local port="${svc##*:}"
-        if curl -sf "http://localhost:$port/ping" &>/dev/null || curl -sf "http://localhost:$port" &>/dev/null; then
-          statuses+=("$name: healthy")
-        else
-          statuses+=("$name: starting")
-          all_ready=false
-        fi
-      done
-      
-      local status_str=$(IFS=', '; echo "${statuses[*]}")
-      info "Waiting for containers... ($status_str)"
-      
-      if $all_ready; then
-         success "All services are ready"
-         break
-      fi
-      sleep 15
-    done
-    [[ $retries -le 0 ]] && warn "Some services may not be ready yet – check: docker compose logs"
-    
-    local t_taken=$(( SECONDS - INSTALL_START_TIME ))
-    INSTALL_START_TIME=$SECONDS
-    phase_complete "Health Checks" "$t_taken"
-    return
+  start_spinner "Waiting for containers to become healthy..." || true
+  
+  # Terminate the inner background spinner so it doesn't fight with our single-line printf
+  if [[ -n "$SPINNER_PID" ]]; then
+    kill "$SPINNER_PID" >/dev/null 2>&1 || true
+    SPINNER_PID=""
   fi
 
-  # Interactive Table
-  local compose_cmd="${DOCKER_CMD:-docker} compose"
   local containers=(
-    "mediaflow_radarr"
-    "mediaflow_sonarr"
-    "mediaflow_qbittorrent"
-    "mediaflow_jellyfin"
-    "mediaflow_prowlarr"
-    "mediaflow_bazarr"
-    "mediaflow_overseerr"
-    "mediaflow_tdarr"
-    "mediaflow_sonarr-anime"
+    "mediaflow_radarr" "mediaflow_sonarr" "mediaflow_qbittorrent"
+    "mediaflow_jellyfin" "mediaflow_prowlarr" "mediaflow_bazarr"
+    "mediaflow_overseerr" "mediaflow_tdarr" "mediaflow_sonarr-anime"
   )
+  local total=${#containers[@]}
+  local timeout=$(( SECONDS + 180 ))
   
-  echo "Waiting for containers to become healthy..."
-  for c in "${containers[@]}"; do
-    echo ""
-  done
-  
-  local retries=30
-  local all_healthy=false
-  local chars=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
-  local char_idx=0
-  
-  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput civis || true; fi
-  
-  while [[ $retries -gt 0 ]]; do
-    ((retries--)) || true
-    all_healthy=true
-    
-    if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cuu ${#containers[@]} || true; fi
-    
-    local spinner_char="${chars[$char_idx]}"
-    char_idx=$(( (char_idx + 1) % ${#chars[@]} ))
+  while [[ $SECONDS -lt $timeout ]]; do
+    local ps_output
+    ps_output=$(${DOCKER_CMD:-docker} ps --format '{{.Names}} {{.Status}}')
+    local healthy=0
     
     for c in "${containers[@]}"; do
-      local st
-      st=$(${DOCKER_CMD:-docker} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo "Missing")
-      
-      if [[ "$st" == "healthy" || "$st" == "running" ]]; then
-        printf "\r  %-25s ${GREEN}✔ Healthy${RESET}\033[K\n" "$c"
-      elif [[ "$st" == "starting" ]]; then
-        all_healthy=false
-        printf "\r  %-25s ${CYAN}%s Starting...${RESET}\033[K\n" "$c" "$spinner_char"
-      elif [[ "$st" == "Missing" ]]; then
-        all_healthy=false
-        printf "\r  %-25s ${YELLOW}✗ Not Found${RESET}\033[K\n" "$c"
-      else
-        all_healthy=false
-        printf "\r  %-25s ${RED}✗ Unhealthy (%s)${RESET}\033[K\n" "$c" "$st"
+      if echo "$ps_output" | grep "^$c " | grep -q "[(]healthy[)]\|Up"; then
+         if ! echo "$ps_output" | grep "^$c " | grep -q "[(]unhealthy[)]\|restarting"; then
+           ((healthy++)) || true
+         fi
       fi
     done
     
-    if $all_healthy; then
-      success "All containers are healthy!"
+    if $INTERACTIVE; then
+      printf "\r${CYAN}[INFO]${RESET}  Health checks: %d/%d containers healthy...\033[K" "$healthy" "$total"
+    else
+      if [[ $(( SECONDS % 15 )) -eq 0 ]]; then
+        echo "Health checks: $healthy/$total containers healthy..."
+      fi
+    fi
+    
+    if [[ $healthy -ge $total ]]; then
       break
     fi
-    sleep 2
+    sleep 5
   done
-
-
-  if $INTERACTIVE; then command -v tput >/dev/null 2>&1 && tput cnorm || true; fi
-
-  if ! $all_healthy; then
-    warn "Some containers did not become healthy in time."
-  else
-    success "All containers are healthy!"
-  fi
+  
+  if $INTERACTIVE; then echo ""; fi
+  
+  # Print Summary Table
+  echo -e "Container Status Summary:"
+  for c in "${containers[@]}"; do
+    local st=$(${DOCKER_CMD:-docker} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo "Missing")
+    if [[ "$st" == "healthy" || "$st" == "running" ]]; then
+      printf "  %-25s ${GREEN}✔ Healthy${RESET}\n" "$c"
+    else
+      printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}\n" "$c" "$st"
+    fi
+  done
+  echo ""
 
   local t_taken=$(( SECONDS - INSTALL_START_TIME ))
   INSTALL_START_TIME=$SECONDS
