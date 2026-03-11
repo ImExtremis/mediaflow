@@ -43,7 +43,7 @@ app.use((req, res, next) => {
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.2.1' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.4.0' });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -57,6 +57,8 @@ app.use('/api/health-monitor', requireAuth, healthRoutes);
 app.use('/api/indexers', requireAdmin, indexersRoutes);
 app.use('/api/jellyfin', requireAuth, jellyfinRoutes);
 app.use('/api/update', requireAdmin, updateRoutes);
+app.use('/api/trending', requireAuth, require('./src/trending'));
+app.use('/api/youtube', requireAuth, require('./src/youtube'));
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

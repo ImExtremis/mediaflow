@@ -21,6 +21,7 @@ mkdir -p ./data/media/movies \
          ./data/torrents/movies \
          ./data/torrents/tv \
          ./data/transcode_cache \
+         ./data/yt-downloads \
          ./appdata/radarr \
          ./appdata/sonarr \
          ./appdata/sonarr-anime \
@@ -28,7 +29,7 @@ mkdir -p ./data/media/movies \
          ./appdata/qbittorrent/qBittorrent \
          ./appdata/jellyfin \
          ./appdata/bazarr \
-         ./appdata/overseerr \
+         ./appdata/jellyseerr \
          ./appdata/tdarr/server \
          ./state \
          ./logs

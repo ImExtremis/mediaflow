@@ -15,6 +15,8 @@ import Indexers from './pages/Indexers.jsx';
 import Watch from './pages/Watch.jsx';
 import Requests from './pages/Requests.jsx';
 import Transcoding from './pages/Transcoding.jsx';
+import Trending from './pages/Trending.jsx';
+import YouTube from './pages/YouTube.jsx';
 import Settings from './pages/Settings.jsx';
 import Users from './pages/Users.jsx';
 import MaintenanceScreen from './components/MaintenanceScreen.jsx';
@@ -30,6 +32,7 @@ const NAV = [
     {
         group: 'Overview', items: [
             { to: '/', icon: '🏠', label: 'Dashboard', color: '#ffffff' },
+            { to: '/trending', icon: '🔥', label: 'Trending', color: '#ef4444' },
         ]
     },
     {
@@ -51,6 +54,7 @@ const NAV = [
         group: 'Playback & Services', items: [
             { to: '/watch', icon: '🎞️', label: 'Watch', color: '#06b6d4' },
             { to: '/requests', icon: '🎉', label: 'Requests', color: '#14b8a6' },
+            { to: '/youtube', icon: '📥', label: 'YouTube', color: '#ef4444' },
             { to: '/transcoding', icon: '🔄', label: 'Transcoding', color: '#6366f1' },
         ]
     },
@@ -120,9 +124,9 @@ function ToastContainer() {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar() {
-    const location = useLocation();
-    const [version, setVersion] = useState('v1.3.0');
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+    const [version, setVersion] = useState('v1.4.0');
+    // We'll optionally fetch backend version to ensure synceAuth();
 
     useEffect(() => {
         apiFetch('/api/update/check')
@@ -140,9 +144,9 @@ function Sidebar() {
         return NAV.map(group => {
             let allowedItems = [];
             if (user.role === 'requester') {
-                allowedItems = group.items.filter(item => ['/', '/watch', '/requests'].includes(item.to));
+                allowedItems = group.items.filter(item => ['/', '/trending', '/watch', '/requests', '/youtube'].includes(item.to));
             } else if (user.role === 'viewer') {
-                allowedItems = group.items.filter(item => ['/watch'].includes(item.to));
+                allowedItems = group.items.filter(item => ['/trending', '/watch'].includes(item.to));
             }
             return { ...group, items: allowedItems };
         }).filter(group => group.items.length > 0);
@@ -224,7 +228,9 @@ export default function App() {
                                     <Route path="/indexers" element={<ProtectedRoute allowedRoles={['admin']}><Indexers /></ProtectedRoute>} />
                                     <Route path="/watch" element={<ProtectedRoute allowedRoles={['admin', 'requester', 'viewer']}><Watch /></ProtectedRoute>} />
                                     <Route path="/requests" element={<ProtectedRoute allowedRoles={['admin', 'requester']}><Requests /></ProtectedRoute>} />
+                                    <Route path="/youtube" element={<ProtectedRoute allowedRoles={['admin', 'requester']}><YouTube /></ProtectedRoute>} />
                                     <Route path="/transcoding" element={<ProtectedRoute allowedRoles={['admin']}><Transcoding /></ProtectedRoute>} />
+                                    <Route path="/trending" element={<ProtectedRoute allowedRoles={['admin', 'requester', 'viewer']}><Trending /></ProtectedRoute>} />
                                     <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
                                     <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
                                 </Routes>

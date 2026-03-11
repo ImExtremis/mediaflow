@@ -18,7 +18,7 @@ volumes:
   jellyfin_cache:
   bazarr_config:
   sonarr_anime_config:
-  overseerr_config:
+  jellyseerr_config:
   tdarr_config:
   tdarr_server_config:
 
@@ -196,10 +196,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # ── Overseerr (Media Requests) ───────────────────────────────
-  overseerr:
-    image: sctx/overseerr:latest
-    container_name: mediaflow_overseerr
+  # ── Jellyseerr (Media Requests) ───────────────────────────────
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: mediaflow_jellyseerr
     restart: unless-stopped
     networks:
       - mediaflow_net
@@ -208,9 +208,9 @@ services:
       - PGID=${PGID:-987}
       - TZ=${TZ:-UTC}
     volumes:
-      - overseerr_config:/app/config
+      - jellyseerr_config:/app/config
     ports:
-      - "${OVERSEERR_PORT:-5055}:5055"
+      - "${JELLYSEERR_PORT:-5055}:5055"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5055/api/v1/status" ]
       interval: 30s
@@ -246,6 +246,16 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+  # ── YouTube DL (yt-dlp) ──────────────────────────────────────
+  ytdlp:
+    image: jauderho/yt-dlp:latest
+    container_name: mediaflow_ytdlp
+    restart: unless-stopped
+    networks:
+      - mediaflow_net
+    entrypoint: [ "sleep", "infinity" ]
+    volumes:
+      - ./data/yt-downloads:/downloads
 
   # ── MediaFlow Backend API (Node.js / Express) ────────────────
   backend:
@@ -267,7 +277,7 @@ services:
       - JELLYFIN_URL=http://jellyfin:8096
       - BAZARR_URL=http://bazarr:6767
       - SONARR_ANIME_URL=http://sonarr-anime:8989
-      - OVERSEERR_URL=http://overseerr:5055
+      - JELLYSEERR_URL=http://jellyseerr:5055
       - TDARR_URL=http://tdarr:8265
       - SONARR_API_KEY=${SONARR_API_KEY:-}
       - RADARR_API_KEY=${RADARR_API_KEY:-}
@@ -278,16 +288,15 @@ services:
     volumes:
       - ./config:/app/config
       - ./data:/data:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.env:/app/.env
     depends_on:
       - sonarr
       - radarr
       - prowlarr
       - qbittorrent
       - jellyfin
-      - bazarr
-      - sonarr-anime
-      - overseerr
-      - tdarr
+      - jellyseerr
 
   # ── MediaFlow Frontend Dashboard (Nginx + React) ─────────────
   frontend:

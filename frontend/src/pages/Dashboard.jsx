@@ -14,7 +14,7 @@ const SERVICES_META = {
     qbittorrent: { label: 'qBittorrent', icon: '⬇️', color: '#6DC9F7', port: '8082' },
     jellyfin: { label: 'Jellyfin', icon: '🎞️', color: '#AA5CC3', port: '8096' },
     bazarr: { label: 'Bazarr', icon: '📝', color: '#8b5cf6', port: '6767' },
-    overseerr: { label: 'Overseerr', icon: '🎉', color: '#f59e0b', port: '5055' },
+    jellyseerr: { label: 'Jellyseerr', icon: '🎉', color: '#14b8a6', port: '5055' },
     tdarr: { label: 'Tdarr', icon: '🔄', color: '#10b981', port: '8265' }
 };
 

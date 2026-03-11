@@ -3,6 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install dependencies first (caching layer)
+RUN apk add --no-cache docker-cli
 COPY package*.json ./
 RUN npm ci --omit=dev
 

@@ -4,13 +4,18 @@
 import { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
 import { showToast } from '../App';
-import { Download, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Download, CheckCircle, RefreshCw, AlertTriangle, Power } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 export default function Settings() {
     const { config, updateConfig, loading } = useConfig();
     const [history, setHistory] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(true);
+    const [servicesState, setServicesState] = useState({
+        'sonarr-anime': { state: 'unknown', changing: true },
+        'tdarr': { state: 'unknown', changing: true },
+        'bazarr': { state: 'unknown', changing: true }
+    });
 
     const token = localStorage.getItem('mediaflow_token');
 
@@ -43,6 +48,25 @@ export default function Settings() {
             .then(data => setHistory(Array.isArray(data) ? data : []))
             .catch(err => console.error(err))
             .finally(() => setHistoryLoading(false));
+            
+        // Initial service state fetch
+        const fetchServiceState = async (id) => {
+            try {
+                const res = await apiFetch(`/api/services/${id}`);
+                const data = await res.json();
+                setServicesState(prev => ({
+                    ...prev,
+                    [id]: { state: data.status === 'online' ? 'running' : 'stopped', changing: false }
+                }));
+            } catch (e) {
+                setServicesState(prev => ({
+                    ...prev,
+                    [id]: { state: 'unknown', changing: false }
+                }));
+            }
+        };
+
+        ['sonarr-anime', 'tdarr', 'bazarr'].forEach(fetchServiceState);
     }, []);
 
     if (!token) return <div className="page-container"><div className="empty-state"><h2>Access Denied</h2></div></div>;
@@ -89,6 +113,28 @@ export default function Settings() {
             showToast('Network error starting update', 'error');
         } finally {
             setStartingUpdate(false);
+        }
+    };
+
+    const toggleService = async (id, currentState) => {
+        const action = currentState === 'running' ? 'suspend' : 'resume';
+        
+        setServicesState(prev => ({ ...prev, [id]: { ...prev[id], changing: true } }));
+        try {
+            const res = await apiFetch(`/api/services/${id}/${action}`, { method: 'POST' });
+            if (res.ok) {
+                showToast(`${id} ${action === 'suspend' ? 'suspended' : 'resumed'}`, 'success');
+                setServicesState(prev => ({ 
+                    ...prev, 
+                    [id]: { state: action === 'suspend' ? 'stopped' : 'running', changing: false } 
+                }));
+            } else {
+                showToast(`Failed to ${action} ${id}`, 'error');
+                setServicesState(prev => ({ ...prev, [id]: { ...prev[id], changing: false } }));
+            }
+        } catch (e) {
+            showToast(`Error trying to ${action} ${id}`, 'error');
+            setServicesState(prev => ({ ...prev, [id]: { ...prev[id], changing: false } }));
         }
     };
 
@@ -143,6 +189,41 @@ export default function Settings() {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Service Toggles Section */}
+            <div className="card" style={{ padding: '20px' }}>
+                <h3 style={{ margin: '0 0 5px 0' }}>Service Toggles</h3>
+                <p style={{ margin: '0 0 15px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Temporarily suspend heavy services when not in use to save server resources.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {['sonarr-anime', 'tdarr', 'bazarr'].map(id => {
+                        const svc = servicesState[id];
+                        const isRunning = svc.state === 'running';
+                        return (
+                            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ padding: '8px', borderRadius: '50%', background: isRunning ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
+                                        <Power size={18} color={isRunning ? '#10b981' : '#ef4444'} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>{id.replace('-', ' ')}</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{isRunning ? 'Currently Running' : 'Suspended'}</div>
+                                    </div>
+                                </div>
+                                <button 
+                                    className={`btn ${isRunning ? 'btn-ghost' : 'btn-primary'}`} 
+                                    onClick={() => toggleService(id, svc.state)}
+                                    disabled={svc.changing || svc.state === 'unknown'}
+                                    style={{ borderColor: isRunning ? '#ef4444' : '', color: isRunning ? '#ef4444' : '' }}
+                                >
+                                    {svc.changing ? 'Please wait...' : (isRunning ? 'Suspend' : 'Resume')}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             <div className="card" style={{ padding: '20px' }}>

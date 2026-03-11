@@ -42,7 +42,8 @@ fi
 echo ""
 echo -e "${RED}${BOLD}⚠  WARNING: Removing volumes will delete ALL service configuration data!${RESET}"
 echo -e "    This includes Sonarr, Radarr, Prowlarr, qBittorrent, and Jellyfin settings."
-read -rp "$(echo -e "${RED}Remove Docker volumes (config data)? [y/N]: ${RESET}")" remove_volumes
+echo -e "${RED}${BOLD}⚠  WARNING: This will also delete ./data/yt-downloads and all downloaded YouTube videos!${RESET}"
+read -rp "$(echo -e "${RED}Remove Docker volumes and yt-downloads? [y/N]: ${RESET}")" remove_volumes
 if [[ "$remove_volumes" =~ ^[Yy]$ ]]; then
   info "Removing Docker volumes..."
   docker compose down --volumes 2>/dev/null || true
@@ -51,8 +52,12 @@ if [[ "$remove_volumes" =~ ^[Yy]$ ]]; then
     mediaflow_prowlarr_config mediaflow_qbittorrent_config \
     mediaflow_jellyfin_config mediaflow_jellyfin_cache \
     mediaflow_bazarr_config mediaflow_sonarr_anime_config \
-    mediaflow_overseerr_config mediaflow_tdarr_config mediaflow_tdarr_server_config 2>/dev/null || true
-  success "Docker volumes removed"
+    mediaflow_jellyseerr_config mediaflow_tdarr_config mediaflow_tdarr_server_config 2>/dev/null || true
+    
+  info "Removing yt-downloads..."
+  sudo rm -rf ./data/yt-downloads 2>/dev/null || true
+  
+  success "Docker volumes and yt-downloads removed"
 fi
 
 # Remove firewall rules
