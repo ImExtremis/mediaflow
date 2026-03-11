@@ -32,6 +32,16 @@ That's it. The script handles everything automatically:
 - ≥10 GB free disk space (30GB+ recommended for media)
 - `sudo` access
 
+## 🚀 v1.3.0 Changelog: The Security Update
+
+- **Authentication System:** Complete JWT-based auth and secure login portal to protect the dashboard.
+- **Role-Based Access Control:** Invite new users as Admins, Requesters, or Viewers with customized UI filters.
+- **Design Overhaul:** Deep dark theme applied globally, glassmorphism UI elements, and service-specific accent colors.
+- **Quick Links:** Dynamic, automatically updating container status links right on the dashboard.
+- **Secure Updates:** Administrator-verified system updates with backend password confirmations.
+
+---
+
 ## 🆕 v1.2 Changelog
 
 - **Bazarr Subtitles:** Automated subtitle downloading tailored for Movies-Shows (Hindi/English) and Anime (English). *Note: Hinglish is not a recognized language code in subtitle databases, so a Hindi+English combination profile is used instead as the closest equivalent.*

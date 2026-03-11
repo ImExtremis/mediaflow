@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useConfig } from '../hooks/useConfig';
+import { ExternalLink } from 'lucide-react';
 // =============================================================================
 //  MediaFlow · Dashboard.jsx – Service health overview
 // =============================================================================
@@ -24,6 +26,7 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 export default function Dashboard() {
+    const { config } = useConfig();
     const [healthState, setHealthState] = useState({ disk: {}, services: [], torrentStats: {}, queues: {} });
     const [loading, setLoading] = useState(true);
 
@@ -123,25 +126,39 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Container Status grid */}
-            <div className="card" style={{ padding: '20px' }}>
-                <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem' }}>🐳 Container Status</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
+            {/* Quick Links grid */}
+            <div>
+                <h3 style={{ margin: '0 0 15px 0', fontSize: '1.2rem' }}>🔗 Quick Links</h3>
+                <div className="card-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
                     {Object.entries(SERVICES_META).map(([id, meta]) => {
                         const svc = services.find(s => s.id === id);
-                        let badgeClass = 'stopped';
-                        if (svc?.status === 'healthy') badgeClass = 'online';
-                        else if (svc?.status === 'unhealthy') badgeClass = 'offline';
+                        let badgeClass = 'offline';
+                        let statusText = 'Offline';
+                        if (svc?.status === 'healthy') { badgeClass = 'online'; statusText = 'Online'; }
+                        else if (svc?.status === 'starting') { badgeClass = 'loading'; statusText = 'Starting'; }
+
+                        const servicePort = config?.services?.[id]?.port || meta.port;
+                        const serviceUrl = `http://${window.location.hostname}:${servicePort}`;
 
                         return (
-                            <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: 'var(--bg-card-hover)', borderRadius: '8px', borderLeft: `4px solid ${meta.color}` }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span>{meta.icon}</span>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{meta.label}</span>
+                            <div key={id} className="service-card" style={{ borderTop: `4px solid ${meta.color}` }}>
+                                <div className="service-top">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <span className="service-icon">{meta.icon}</span>
+                                        <div>
+                                            <div className="service-name">{meta.label}</div>
+                                            <div className="service-url">Port {servicePort}</div>
+                                        </div>
+                                    </div>
+                                    <div className={`status-badge ${badgeClass}`} title={svc?.error || ''}>
+                                        <span className="status-dot"></span> {statusText}
+                                    </div>
                                 </div>
-                                <span className={`status-badge ${badgeClass}`} style={{ marginLeft: '10px' }} title={svc?.error || ''}>
-                                    <span className="status-dot" />
-                                </span>
+                                <div style={{ marginTop: '15px' }}>
+                                    <a href={serviceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }} onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}>
+                                        Open <ExternalLink size={14} />
+                                    </a>
+                                </div>
                             </div>
                         );
                     })}
