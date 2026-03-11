@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { spawn } = require('child_process');
+const bcrypt = require('bcryptjs');
+const { getUsers } = require('../utils/users');
 
 const router = express.Router();
 
@@ -98,6 +100,38 @@ router.post('/start', (req, res) => {
     }
     startUpdateProcess(['bash', UPDATE_SCRIPT]);
     res.json({ success: true, message: "Update started" });
+});
+
+router.post('/verify-and-start', async (req, res) => {
+    try {
+        if (currentUpdateProcess) {
+            return res.status(400).json({ error: "Update already in progress" });
+        }
+
+        const { password } = req.body;
+        if (!password) {
+            return res.status(400).json({ error: "Password is required" });
+        }
+
+        const users = getUsers();
+        // The user ID is added to req.user by requireAdmin middleware in server.js
+        const user = users.find(u => u.id === req.user.userId);
+
+        if (!user) {
+            return res.status(401).json({ error: "User not found" });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+            return res.status(403).json({ error: "Incorrect password" });
+        }
+
+        startUpdateProcess(['bash', UPDATE_SCRIPT]);
+        res.json({ success: true, message: "Update started" });
+    } catch (err) {
+        console.error("[Update API] Error verifying password for update:", err);
+        res.status(500).json({ error: "Failed to verify password" });
+    }
 });
 
 router.post('/rollback', (req, res) => {

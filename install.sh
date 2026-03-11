@@ -427,7 +427,14 @@ generate_api_keys() {
     PROWLARR_KEY=$(grep "^PROWLARR_API_KEY=" "$env_file" | cut -d= -f2 || true)
   fi
 
-  success "API keys generated"
+  if grep -q "^JWT_SECRET=$" "$env_file" 2>/dev/null; then
+    JWT_KEY=$(generate_key)
+    sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_KEY/" "$env_file" || true
+  else
+    JWT_KEY=$(grep "^JWT_SECRET=" "$env_file" | cut -d= -f2 || true)
+  fi
+
+  success "API keys and JWT secret generated"
 }
 
 # ─── Setup Permissions ───────────────────────────────────────────────────

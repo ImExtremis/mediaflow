@@ -16,6 +16,9 @@ const healthRoutes = require('./routes/health');
 const indexersRoutes = require('./routes/indexers');
 const jellyfinRoutes = require('./routes/jellyfin');
 const updateRoutes = require('./routes/update');
+const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
+const { requireAuth, requireAdmin } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,13 +47,16 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/config', configRoutes);
-app.use('/api/services', servicesRoutes);
-app.use('/api/proxy', proxyRoutes);
-app.use('/api/health-monitor', healthRoutes);
-app.use('/api/indexers', indexersRoutes);
-app.use('/api/jellyfin', jellyfinRoutes);
-app.use('/api/update', updateRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
+
+app.use('/api/config', requireAdmin, configRoutes);
+app.use('/api/services', requireAuth, servicesRoutes);
+app.use('/api/proxy', requireAuth, proxyRoutes);
+app.use('/api/health-monitor', requireAuth, healthRoutes);
+app.use('/api/indexers', requireAdmin, indexersRoutes);
+app.use('/api/jellyfin', requireAuth, jellyfinRoutes);
+app.use('/api/update', requireAdmin, updateRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
