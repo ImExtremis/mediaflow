@@ -48,7 +48,7 @@ auto_rollback() {
   echo -e "${BOLD}${RED}UPDATE FAILED — INITIATING AUTO ROLLBACK${RESET}"
   
   info "Stopping containers..."
-  docker compose down >/dev/null 2>&1 || true
+  docker compose down --remove-orphans >/dev/null 2>&1 || true
 
   info "Restoring files from backup ($BACKUP_DIR)..."
   if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
@@ -62,8 +62,16 @@ auto_rollback() {
   info "Reverting any pulled code changes..."
   git stash || true
 
+  info "Removing any orphaned containers blocking port 5055..."
+  ORPHAN=$(docker ps --format '{{.Names}} {{.Ports}}' | grep ':5055->' | awk '{print $1}' || true)
+  if [[ -n "$ORPHAN" && "$ORPHAN" != "mediaflow_jellyseerr" ]]; then
+    info "Removing orphan container using port 5055: $ORPHAN"
+    docker stop "$ORPHAN" >/dev/null 2>&1 || true
+    docker rm "$ORPHAN" >/dev/null 2>&1 || true
+  fi
+
   info "Restarting containers..."
-  docker compose up -d || true
+  docker compose up -d --remove-orphans || true
 
   info "Waiting for health checks to pass..."
   sleep 10 # brief wait to let containers start
@@ -84,6 +92,14 @@ auto_rollback() {
 # STEP 1: Pre-flight checks
 # -----------------------------------------------------------------------------
 info "Step 1: Running pre-flight checks..."
+
+# Check for orphaned containers on port 5055
+ORPHAN=$(docker ps --format '{{.Names}} {{.Ports}}' | grep ':5055->' | awk '{print $1}' || true)
+if [[ -n "$ORPHAN" && "$ORPHAN" != "mediaflow_jellyseerr" ]]; then
+  info "Removing orphan container using port 5055: $ORPHAN"
+  docker stop "$ORPHAN" >/dev/null 2>&1 || true
+  docker rm "$ORPHAN" >/dev/null 2>&1 || true
+fi
 
 # Check Docker
 if ! docker info >/dev/null 2>&1; then
@@ -157,7 +173,7 @@ success "Images pulled."
 # STEP 8: Stop containers gracefully
 # -----------------------------------------------------------------------------
 info "Step 8: Stopping containers..."
-docker compose down --timeout 30 >/dev/null 2>&1
+docker compose down --remove-orphans --timeout 30 >/dev/null 2>&1
 success "Containers stopped."
 
 # -----------------------------------------------------------------------------
@@ -174,16 +190,16 @@ success "Frontend and backend rebuilt successfully."
 # STEP 10: Start containers
 # -----------------------------------------------------------------------------
 info "Step 10: Starting containers..."
-local SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
-local TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
-local BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
+BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
 
-local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
+core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
 [[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
 [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
 [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
 
-docker compose up -d $core_services
+docker compose up -d --remove-orphans $core_services
 success "Containers started."
 
 # -----------------------------------------------------------------------------
