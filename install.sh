@@ -1063,6 +1063,11 @@ print_summary() {
 # ─── Main ────────────────────────────────────────────────────────────────────
 main() {
   INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  
+  if [[ -d "${INSTALL_DIR}/logs" ]] && [[ ! -w "${INSTALL_DIR}/logs" ]]; then
+    sudo chown -R "$(whoami):$(whoami)" "${INSTALL_DIR}/logs" "${INSTALL_DIR}/state" "${INSTALL_DIR}/backups" 2>/dev/null || true
+  fi
+  
   mkdir -p "$INSTALL_DIR/logs"
   {
   
@@ -1119,7 +1124,7 @@ main() {
   get_qbit_password
   automate_configurations
   print_summary
-  } 2>&1 | tee -a "$INSTALL_DIR/logs/install.log"
+  } 2>&1 | tee -a "$INSTALL_DIR/logs/install.log" || true
 }
 
 main "$@"
