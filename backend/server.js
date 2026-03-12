@@ -43,7 +43,12 @@ app.use((req, res, next) => {
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.4.0' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.4.1' });
+});
+
+// ─── Server Info (public – needed by frontend for Quick Links) ─────────────────
+app.get('/api/server/info', (_req, res) => {
+  res.json({ ip: process.env.SERVER_IP || 'localhost' });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────

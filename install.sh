@@ -115,7 +115,7 @@ render_header() {
 
   echo ""
   echo -e "${CYAN}╔${border}╗${RESET}"
-  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.0${RESET}${title_spaces}${CYAN}║${RESET}"
+  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.1${RESET}${title_spaces}${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}${prog_spaces}${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}${phase_prefix}%s${phase_spaces}${CYAN}║${RESET}\n" "$phase_val"
   echo -e "${CYAN}╚${border}╝${RESET}"
@@ -238,7 +238,7 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.0${RESET}"
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.1${RESET}"
   echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr"
   echo ""
 }
@@ -496,6 +496,23 @@ generate_api_keys() {
   fi
 
   success "API keys and JWT secret generated"
+
+  # Detect LAN IP and write SERVER_IP to .env
+  local detected_ip=""
+  detected_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+  if [[ -z "$detected_ip" ]]; then
+    detected_ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)
+  fi
+  if [[ -n "$detected_ip" ]]; then
+    if grep -q "^SERVER_IP=" "$env_file" 2>/dev/null; then
+      sed -i "s/^SERVER_IP=.*/SERVER_IP=$detected_ip/" "$env_file" || true
+    else
+      echo "SERVER_IP=$detected_ip" >> "$env_file" || true
+    fi
+    success "Server LAN IP detected: $detected_ip (written to .env as SERVER_IP)"
+  else
+    warn "Could not auto-detect LAN IP. Set SERVER_IP manually in .env for Quick Links to work."
+  fi
 }
 
 # ─── Setup Permissions ───────────────────────────────────────────────────

@@ -40,7 +40,14 @@ export default function Login() {
         <div className="auth-page">
             <div className="auth-card fade-in">
                 <div className="auth-header" style={{ textAlign: 'center' }}>
-                    <img src="/logo.png" alt="MediaFlow Logo" style={{ width: '64px', height: '64px', margin: '0 auto 15px auto', display: 'block' }} />
+                    <div className="flex justify-center mb-8">
+                        <img
+                            src="/mediaflow-logo.png"
+                            alt="MediaFlow"
+                            className="w-32 h-32 rounded-2xl object-contain"
+                            style={{ filter: 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.5))' }}
+                        />
+                    </div>
                     <h1>MediaFlow</h1>
                     <p>Dashboard Login</p>
                 </div>
