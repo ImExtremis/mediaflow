@@ -54,6 +54,14 @@ error() {
 
 die() { error "$*"; exit 1; }
 
+# ─── Global Variable Defaults (prevent set -u crashes) ───────────────────────
+OS=""
+PKG_MANAGER=""
+DOCKER_CMD="docker"
+QBIT_PASS=""
+SOURCE_KEY=""; SONARR_KEY=""; RADARR_KEY=""; PROWLARR_KEY=""; JWT_KEY=""; JELLYFIN_KEY=""
+INSTALL_DIR=""
+
 # ─── UI Helper Functions ─────────────────────────────────────────────────────
 TOTAL_PHASES=7
 CURRENT_PHASE=0
@@ -61,7 +69,7 @@ CURRENT_PHASE_NAME="Initialization"
 INSTALL_START_TIME=$SECONDS
 
 render_header() {
-  CURRENT_PHASE_NAME="$1"
+  CURRENT_PHASE_NAME="${1:-}"
   ((CURRENT_PHASE++)) || true
   log_to_file "[PHASE START] $CURRENT_PHASE/$TOTAL_PHASES: $CURRENT_PHASE_NAME"
   
@@ -114,8 +122,8 @@ render_header() {
 }
 
 phase_complete() {
-  local phase_name="$1"
-  local time_taken="$2"
+  local phase_name="${1:-}"
+  local time_taken="${2:-0}"
   local mins=$(( time_taken / 60 ))
   local secs=$(( time_taken % 60 ))
   local time_str="${mins}m ${secs}s"
@@ -130,8 +138,8 @@ phase_complete() {
 }
 
 progress_bar() {
-  local percent="$1"
-  local label="$2"
+  local percent="${1:-0}"
+  local label="${2:-}"
   local color="${3:-$CYAN}"
   
   if ! $INTERACTIVE; then
@@ -157,7 +165,7 @@ progress_bar() {
 
 SPINNER_PID=""
 start_spinner() {
-  local msg="$1"
+  local msg="${1:-}"
   if ! $INTERACTIVE; then
     echo "Starting: $msg..."
     return
@@ -179,9 +187,9 @@ start_spinner() {
 }
 
 stop_spinner() {
-  local end_msg="$1"
+  local end_msg="${1:-}"
   if [[ -n "$SPINNER_PID" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
-    kill "$SPINNER_PID" >/dev/null 2>&1
+    kill "$SPINNER_PID" >/dev/null 2>&1 || true
     wait "$SPINNER_PID" 2>/dev/null || true
   fi
   SPINNER_PID=""
@@ -197,9 +205,9 @@ stop_spinner() {
 }
 
 stop_spinner_fail() {
-  local end_msg="$1"
+  local end_msg="${1:-}"
   if [[ -n "$SPINNER_PID" ]] && kill -0 "$SPINNER_PID" 2>/dev/null; then
-    kill "$SPINNER_PID" >/dev/null 2>&1
+    kill "$SPINNER_PID" >/dev/null 2>&1 || true
     wait "$SPINNER_PID" 2>/dev/null || true
   fi
   SPINNER_PID=""
@@ -373,8 +381,8 @@ install_docker() {
 configure_docker() {
   if [[ "$OS" != "macos" ]]; then
     info "Enabling Docker service to start on boot..."
-    sudo systemctl enable docker >/dev/null 2>&1
-    sudo systemctl start docker >/dev/null 2>&1
+    sudo systemctl enable docker >/dev/null 2>&1 || true
+    sudo systemctl start docker >/dev/null 2>&1 || true
     # Allow current user to run docker without sudo
     if ! groups "$USER" | grep -q docker; then
       sudo usermod -aG docker "$USER"
@@ -552,8 +560,8 @@ setup_permissions() {
 
   for dir in "${target_dirs[@]}"; do
     if [[ -d "$dir" ]]; then
-      sudo chown -R "$TARGET_UID:$TARGET_GID" "$dir"
-      sudo chmod -R 775 "$dir"
+      sudo chown -R "$TARGET_UID:$TARGET_GID" "$dir" || true
+      sudo chmod -R 775 "$dir" || true
       ((processed++)) || true
       local p=$(( processed * 100 / total_targets ))
       progress_bar "$p" "Setting permissions on ${dir#$INSTALL_DIR/}" "${GREEN}" || true
@@ -562,8 +570,8 @@ setup_permissions() {
   echo ""
 
   # Explicitly apply permissions to sonarr-anime to prevent Permission Denied errors
-  sudo chown -R "$TARGET_UID:$TARGET_GID" "$INSTALL_DIR/appdata/sonarr-anime"
-  sudo chmod -R 775 "$INSTALL_DIR/appdata/sonarr-anime"
+  sudo chown -R "$TARGET_UID:$TARGET_GID" "$INSTALL_DIR/appdata/sonarr-anime" || true
+  sudo chmod -R 775 "$INSTALL_DIR/appdata/sonarr-anime" || true
   
   success "Directories created and permissions configured."
   
@@ -586,11 +594,11 @@ pull_images() {
   done < <($compose_cmd config | grep "image:" | awk '{print $2}' | sort -u || true)
   
   local total=${#images[@]}
-  if [[ "${total:-0}" -eq 0 ]]; then
+  if [[ $total -eq 0 ]]; then
     warn "No images found to pull."
   else
     local current=0
-    for img in "${images[@]}"; do
+    for img in "${images[@]:-}"; do
       ((current++)) || true
       if ${DOCKER_CMD:-docker} image inspect "$img" >/dev/null 2>&1; then
         echo -e "  ${GREEN}✔${RESET} Already present (cached): ${img##*/}"
@@ -698,7 +706,8 @@ pull_images() {
   echo -e "${CYAN}[INFO]${RESET}  Running catch-all compose pull..."
   
   ${compose_cmd} pull > /tmp/mediaflow_pull.log 2>&1
-  local PULL_EXIT=$?
+  local PULL_EXIT
+  PULL_EXIT=$?
   if [[ $PULL_EXIT -eq 0 ]]; then
     success "All Docker images pulled."
   else
@@ -755,7 +764,8 @@ build_images() {
     echo -e "${CYAN}[INFO]${RESET}  Building local Dockerfiles..."
     
     ${compose_cmd} build --quiet > /tmp/mediaflow_build.log 2>&1
-    local BUILD_EXIT=$?
+    local BUILD_EXIT
+    BUILD_EXIT=$?
     if [[ $BUILD_EXIT -ne 0 ]]; then
       error "Docker compose build completed with warnings/errors"
       cat /tmp/mediaflow_build.log
@@ -806,7 +816,8 @@ deploy_stack() {
   
   # Intentionally unquoted $core_services to allow word splitting of service names
   ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
-  local DEPLOY_EXIT=$?
+  local DEPLOY_EXIT
+  DEPLOY_EXIT=$?
   
   if [[ $DEPLOY_EXIT -eq 0 ]]; then
     success "All containers started"
