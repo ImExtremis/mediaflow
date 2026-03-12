@@ -32,7 +32,15 @@ That's it. The script handles everything automatically:
 - Ubuntu 20.04+, Debian 11+, Arch Linux, or macOS 12+
 - ≥10 GB free disk space (30GB+ recommended for media)
 - `sudo` access
-![Version](https://img.shields.io/badge/Version-1.4.0-blue)
+![Version](https://img.shields.io/badge/Version-1.4.1-blue)
+
+## 🩹 v1.4.1 Changelog: Bug Fix Release
+
+- **Logo 404 Fixed:** Corrected logo filename reference from `mediaflow-logo.png` to `logo.png` across all frontend pages.
+- **Update Check Graceful:** `/api/update/check` now returns a clean JSON response instead of a 500 error when `GITHUB_REPO` is not configured.
+- **Quick Links Hostname:** Dashboard quick links now always fall back to `window.location.hostname` instead of getting stuck on `localhost`.
+- **Jellyseerr Healthcheck:** Increased `start_period` from 60s to 120s to allow sufficient initialization time on first run.
+- **Install Summary:** Version string in `install.sh` summary box corrected to v1.4.1.
 
 ## 🔥 v1.4.0 Changelog: The Automation & UI Update
 
