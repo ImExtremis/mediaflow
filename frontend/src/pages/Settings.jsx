@@ -238,7 +238,8 @@ export default function Settings() {
                         <select
                             value={config.updateChannel || 'stable'}
                             onChange={handleChannelChange}
-                            style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'white', borderRadius: '4px' }}
+                            className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 w-full"
+                            style={{ colorScheme: 'dark' }}
                         >
                             <option value="stable">Stable (Releases)</option>
                             <option value="beta">Beta (Main Branch)</option>

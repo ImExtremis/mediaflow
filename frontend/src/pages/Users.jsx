@@ -4,6 +4,26 @@ import { showToast } from '../App';
 import { apiFetch } from '../utils/api';
 import { Edit2, Trash2, UserPlus, Shield, User, Eye, X } from 'lucide-react';
 
+const AVATARS = [
+    { id: 'film', emoji: '🎬' },
+    { id: 'star', emoji: '⭐' },
+    { id: 'rocket', emoji: '🚀' },
+    { id: 'ghost', emoji: '👻' },
+    { id: 'robot', emoji: '🤖' },
+    { id: 'ninja', emoji: '🥷' },
+    { id: 'alien', emoji: '👽' },
+    { id: 'wizard', emoji: '🧙' },
+    { id: 'dragon', emoji: '🐉' },
+    { id: 'phoenix', emoji: '🦅' },
+    { id: 'cat', emoji: '🐱' },
+    { id: 'wolf', emoji: '🐺' },
+];
+
+const getAvatarEmoji = (avatarId) => {
+    const found = AVATARS.find(a => a.id === avatarId);
+    return found ? found.emoji : '🎬';
+};
+
 export default function Users() {
     const { user: currentUser } = useAuth();
     const [users, setUsers] = useState([]);
@@ -17,7 +37,8 @@ export default function Users() {
         displayName: '',
         username: '',
         password: '',
-        role: 'viewer'
+        role: 'viewer',
+        avatar: 'film'
     });
 
     useEffect(() => {
@@ -106,11 +127,12 @@ export default function Users() {
                 displayName: userObj.displayName,
                 username: userObj.username,
                 password: '',
-                role: userObj.role
+                role: userObj.role,
+                avatar: userObj.avatar || 'film'
             });
         } else {
             setEditingUserId(null);
-            setForm({ displayName: '', username: '', password: '', role: 'viewer' });
+            setForm({ displayName: '', username: '', password: '', role: 'viewer', avatar: 'film' });
         }
         setModalOpen(true);
     };
@@ -157,7 +179,12 @@ export default function Users() {
                         <tbody>
                             {users.map(u => (
                                 <tr key={u.id}>
-                                    <td style={{ fontWeight: 600 }}>{u.displayName}</td>
+                                    <td style={{ fontWeight: 600 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>{getAvatarEmoji(u.avatar)}</span>
+                                            {u.displayName}
+                                        </div>
+                                    </td>
                                     <td><span style={{ opacity: 0.8, fontSize: '0.85rem' }}>@{u.username}</span></td>
                                     <td>
                                         <span className="status-badge" style={{ color: roleColors[u.role], borderColor: roleColors[u.role] }}>
@@ -195,6 +222,30 @@ export default function Users() {
                             </button>
                         </div>
                         <form onSubmit={handleFormSubmit} className="modal-body">
+                            {/* Avatar Selector */}
+                            <div className="form-group">
+                                <label className="form-label">Avatar</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+                                    {AVATARS.map(a => (
+                                        <button
+                                            key={a.id}
+                                            type="button"
+                                            onClick={() => setForm({ ...form, avatar: a.id })}
+                                            style={{
+                                                width: '42px', height: '42px', borderRadius: '50%',
+                                                border: form.avatar === a.id ? '2px solid #8b5cf6' : '2px solid transparent',
+                                                background: form.avatar === a.id ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.05)',
+                                                cursor: 'pointer', fontSize: '20px', display: 'flex',
+                                                alignItems: 'center', justifyContent: 'center',
+                                                boxShadow: form.avatar === a.id ? '0 0 0 2px rgba(139,92,246,0.4)' : 'none',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            {a.emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="form-group">
                                 <label className="form-label">Display Name</label>
                                 <input
@@ -231,7 +282,8 @@ export default function Users() {
                             <div className="form-group">
                                 <label className="form-label">Role</label>
                                 <select
-                                    className="form-input"
+                                    className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 w-full"
+                                    style={{ colorScheme: 'dark' }}
                                     value={form.role}
                                     onChange={e => setForm({ ...form, role: e.target.value })}
                                 >

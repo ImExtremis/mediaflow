@@ -7,15 +7,15 @@ import { apiFetch } from '../utils/api';
 // =============================================================================
 
 const SERVICES_META = {
-    sonarr: { label: 'Sonarr', icon: '📺', color: '#35C5F4', port: '8989' },
-    radarr: { label: 'Radarr', icon: '🎬', color: '#FFC230', port: '7878' },
-    'sonarr-anime': { label: 'Sonarr-Anime', icon: '🎌', color: '#E11D48', port: '8990' },
-    prowlarr: { label: 'Prowlarr', icon: '🔍', color: '#FF7B25', port: '9696' },
-    qbittorrent: { label: 'qBittorrent', icon: '⬇️', color: '#6DC9F7', port: '8082' },
-    jellyfin: { label: 'Jellyfin', icon: '🎞️', color: '#AA5CC3', port: '8096' },
-    bazarr: { label: 'Bazarr', icon: '📝', color: '#8b5cf6', port: '6767' },
-    jellyseerr: { label: 'Jellyseerr', icon: '🎉', color: '#14b8a6', port: '5055' },
-    tdarr: { label: 'Tdarr', icon: '🔄', color: '#10b981', port: '8265' }
+    sonarr:         { label: 'Sonarr',        icon: '📺', color: '#4f8ef7', port: '8989' },
+    radarr:         { label: 'Radarr',        icon: '🎬', color: '#f97316', port: '7878' },
+    'sonarr-anime': { label: 'Sonarr-Anime', icon: '🎌', color: '#8b5cf6', port: '8990' },
+    prowlarr:       { label: 'Prowlarr',      icon: '🔍', color: '#fbbf24', port: '9696' },
+    qbittorrent:    { label: 'qBittorrent',   icon: '⬇️', color: '#6b7280', port: '8082' },
+    jellyfin:       { label: 'Jellyfin',      icon: '🎞️', color: '#00a4dc', port: '8096' },
+    bazarr:         { label: 'Bazarr',        icon: '📝', color: '#ec4899', port: '6767' },
+    jellyseerr:     { label: 'Jellyseerr',    icon: '🎉', color: '#14b8a6', port: '5055' },
+    tdarr:          { label: 'Tdarr',         icon: '🔄', color: '#a855f7', port: '8265' }
 };
 
 function formatBytes(bytes, decimals = 2) {
@@ -30,6 +30,7 @@ export default function Dashboard() {
     const { config } = useConfig();
     const [healthState, setHealthState] = useState({ disk: {}, services: [], torrentStats: {}, queues: {} });
     const [loading, setLoading] = useState(true);
+    const [serverIp, setServerIp] = useState('localhost');
 
     const fetchHealth = useCallback(async () => {
         try {
@@ -48,6 +49,11 @@ export default function Dashboard() {
     useEffect(() => {
         fetchHealth();
         const id = setInterval(fetchHealth, 30000); // 30s polling
+        // Fetch server LAN IP from backend
+        apiFetch('/api/server/info')
+            .then(res => res.json())
+            .then(data => { if (data.ip) setServerIp(data.ip); })
+            .catch(() => { /* fallback to localhost */ });
         return () => clearInterval(id);
     }, [fetchHealth]);
 
@@ -156,9 +162,15 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                                 <div style={{ marginTop: '15px' }}>
-                                    <a href={serviceUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }} onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}>
+                                    <button
+                                        className="btn btn-ghost"
+                                        style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
+                                        onClick={() => window.open(`http://${serverIp}:${servicePort}`, '_blank', 'noopener')}
+                                    >
                                         Open <ExternalLink size={14} />
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         );

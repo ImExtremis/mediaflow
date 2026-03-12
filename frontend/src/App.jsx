@@ -74,13 +74,7 @@ function ProtectedRoute({ children, allowedRoles }) {
     if (!isAuthenticated) return <Navigate to="/login" replace />;
 
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        return (
-            <div className="empty-state" style={{ height: 'calc(100vh - 120px)' }}>
-                <h2>Access Denied</h2>
-                <p>You do not have permission to view this page.</p>
-                <div style={{ padding: '8px 16px', fontSize: '1rem', border: '1px solid var(--accent-rose)', color: 'var(--accent-rose)', borderRadius: '12px', marginTop: '10px' }}>Role: {user.role}</div>
-            </div>
-        );
+        return <Navigate to="/watch" replace />;
     }
 
     return children;
@@ -144,9 +138,9 @@ function Sidebar() {
         return NAV.map(group => {
             let allowedItems = [];
             if (user.role === 'requester') {
-                allowedItems = group.items.filter(item => ['/', '/trending', '/watch', '/requests', '/youtube'].includes(item.to));
+                allowedItems = group.items.filter(item => ['/watch', '/requests', '/youtube'].includes(item.to));
             } else if (user.role === 'viewer') {
-                allowedItems = group.items.filter(item => ['/trending', '/watch'].includes(item.to));
+                allowedItems = group.items.filter(item => ['/watch'].includes(item.to));
             }
             return { ...group, items: allowedItems };
         }).filter(group => group.items.length > 0);
@@ -156,11 +150,25 @@ function Sidebar() {
 
     return (
         <aside className="sidebar">
-            <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src="/logo.png" alt="MediaFlow" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
+            <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px 0 0' }}>
+                <img
+                    src="/mediaflow-logo.png"
+                    alt="MediaFlow"
+                    style={{
+                        width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain',
+                        filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.6))'
+                    }}
+                />
                 <div>
-                    <h1>MediaFlow</h1>
-                    <p style={{ margin: 0 }}>Dashboard</p>
+                    <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', letterSpacing: '0.02em' }}>
+                        Media<span style={{
+                            background: 'linear-gradient(to right, #a78bfa, #fb923c)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text'
+                        }}>Flow</span>
+                    </h1>
+                    <p style={{ margin: 0, fontSize: '0.75rem' }}>Dashboard</p>
                 </div>
             </div>
 
@@ -233,6 +241,8 @@ export default function App() {
                                     <Route path="/trending" element={<ProtectedRoute allowedRoles={['admin', 'requester', 'viewer']}><Trending /></ProtectedRoute>} />
                                     <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
                                     <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
+                                    {/* Catch-all: redirect unknown routes to /watch */}
+                                    <Route path="*" element={<Navigate to="/watch" replace />} />
                                 </Routes>
                             </main>
                         </div>

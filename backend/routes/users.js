@@ -17,6 +17,7 @@ router.get('/', (req, res) => {
             username: u.username,
             displayName: u.displayName,
             role: u.role,
+            avatar: u.avatar || 'film',
             createdAt: u.createdAt,
             lastLogin: u.lastLogin
         }));
@@ -29,7 +30,7 @@ router.get('/', (req, res) => {
 // POST /api/users
 router.post('/', async (req, res) => {
     try {
-        const { displayName, username, password, role } = req.body;
+        const { displayName, username, password, role, avatar } = req.body;
         if (!displayName || !username || !password || !role) {
             return res.status(400).json({ error: 'All fields are required' });
         }
@@ -51,6 +52,7 @@ router.post('/', async (req, res) => {
             displayName,
             passwordHash,
             role,
+            avatar: avatar || 'film',
             createdAt: new Date().toISOString(),
             lastLogin: null
         };
@@ -63,6 +65,7 @@ router.post('/', async (req, res) => {
             username: newUser.username,
             displayName: newUser.displayName,
             role: newUser.role,
+            avatar: newUser.avatar,
             createdAt: newUser.createdAt,
             lastLogin: newUser.lastLogin
         });
@@ -74,7 +77,7 @@ router.post('/', async (req, res) => {
 // PUT /api/users/:id
 router.put('/:id', async (req, res) => {
     try {
-        const { displayName, role, password } = req.body;
+        const { displayName, role, password, avatar } = req.body;
         const users = getUsers();
         const userIndex = users.findIndex(u => u.id === req.params.id);
 
@@ -93,6 +96,7 @@ router.put('/:id', async (req, res) => {
 
         if (displayName) user.displayName = displayName;
         if (role) user.role = role;
+        if (avatar) user.avatar = avatar;
         if (password) {
             user.passwordHash = await bcrypt.hash(password, 12);
         }
@@ -105,6 +109,7 @@ router.put('/:id', async (req, res) => {
             username: user.username,
             displayName: user.displayName,
             role: user.role,
+            avatar: user.avatar || 'film',
             createdAt: user.createdAt,
             lastLogin: user.lastLogin
         });
