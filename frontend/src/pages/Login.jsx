@@ -42,7 +42,7 @@ export default function Login() {
                 <div className="auth-header" style={{ textAlign: 'center' }}>
                     <div className="flex justify-center mb-8">
                         <img
-                            src="/mediaflow-logo.png"
+                            src="/logo.png"
                             alt="MediaFlow"
                             className="w-32 h-32 rounded-2xl object-contain"
                             style={{ filter: 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.5))' }}

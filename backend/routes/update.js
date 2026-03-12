@@ -38,6 +38,14 @@ function getUpdateChannel() {
 
 router.get('/check', async (req, res) => {
     try {
+        if (!process.env.GITHUB_REPO) {
+            return res.json({
+                updateAvailable: false,
+                currentVersion: process.env.npm_package_version || '1.4.1',
+                message: 'GITHUB_REPO not configured'
+            });
+        }
+
         let currentVersion = 'unknown';
         if (fs.existsSync(VERSION_FILE)) {
             currentVersion = fs.readFileSync(VERSION_FILE, 'utf8').trim();
@@ -90,9 +98,10 @@ router.get('/check', async (req, res) => {
         if (err.response && err.response.status === 404) {
             console.error("[Update API] Repository not found or no releases. Please ensure GITHUB_REPO is set correctly.");
         }
-        res.status(500).json({ error: "Failed to check for updates" });
+        res.json({ updateAvailable: false, currentVersion: process.env.npm_package_version || '1.4.1', message: 'Update check failed' });
     }
 });
+
 
 router.post('/start', (req, res) => {
     if (currentUpdateProcess) {

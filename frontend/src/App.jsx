@@ -152,7 +152,7 @@ function Sidebar() {
         <aside className="sidebar">
             <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px 0 0' }}>
                 <img
-                    src="/mediaflow-logo.png"
+                    src="/logo.png"
                     alt="MediaFlow"
                     style={{
                         width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain',
