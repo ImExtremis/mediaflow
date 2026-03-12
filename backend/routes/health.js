@@ -61,7 +61,7 @@ async function getQbitAuth() {
     if (qbitCookie) return qbitCookie;
     try {
         const username = process.env.QBIT_USER || 'admin';
-        const password = process.env.QBIT_PASS || 'adminpassword';
+        const password = process.env.QBIT_PASS || 'adminadmin';
         const res = await axios.post(`${process.env.QBIT_URL || 'http://qbittorrent:8080'}/api/v2/auth/login`, 
             `username=${username}&password=${password}`,
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 3000 }
