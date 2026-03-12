@@ -837,7 +837,7 @@ deploy_stack() {
   # Define specific services to start based on toggles
   local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
   [[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
-  [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
+  [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr"
   [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
   
   stop_spinner >/dev/null 2>&1 || true
@@ -982,28 +982,32 @@ wait_for_services() {
   local last_print=0
   
   while [[ $SECONDS -lt $timeout ]]; do
-    local ps_output
-    ps_output=$(${DOCKER_CMD:-docker} ps --format '{{.Names}} {{.Status}}')
-    local healthy=0
-    
-    for c in "${containers[@]}"; do
-      if echo "$ps_output" | grep "^$c " | grep -q "[(]healthy[)]\|Up"; then
-         if ! echo "$ps_output" | grep "^$c " | grep -q "[(]unhealthy[)]\|restarting"; then
-           ((healthy++)) || true
-         fi
+    local healthy_count=0
+
+    for container in "${containers[@]}"; do
+      local health
+      health=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "")
+      if [[ "$health" == "healthy" ]]; then
+        ((healthy_count++)) || true
+      elif [[ -z "$health" ]] || [[ "$health" == "<no value>" ]]; then
+        local status
+        status=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "")
+        if [[ "$status" == "running" ]]; then
+          ((healthy_count++)) || true
+        fi
       fi
     done
-    
+
     if $INTERACTIVE; then
-      printf "\r${CYAN}[INFO]${RESET}  Health checks: %d/%d containers healthy...\033[K" "$healthy" "$total"
+      printf "\r${CYAN}[INFO]${RESET}  Health checks: %d/%d containers healthy...\033[K" "$healthy_count" "$total"
     else
       if [[ $(( SECONDS - last_print )) -ge 15 ]]; then
-        echo "Health checks: $healthy/$total containers healthy..."
+        echo "Health checks: $healthy_count/$total containers healthy..."
         last_print=$SECONDS
       fi
     fi
-    
-    if [[ $healthy -ge $total ]]; then
+
+    if [[ $healthy_count -ge $total ]]; then
       break
     fi
     sleep 5
