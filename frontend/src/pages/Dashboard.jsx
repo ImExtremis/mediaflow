@@ -167,7 +167,7 @@ export default function Dashboard() {
                                         style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
-                                        onClick={() => window.open(`http://${serverIp}:${servicePort}`, '_blank', 'noopener')}
+                                        onClick={() => window.open(`http://${serverIp && serverIp !== 'localhost' ? serverIp : window.location.hostname}:${servicePort}`, '_blank', 'noopener noreferrer')}
                                     >
                                         Open <ExternalLink size={14} />
                                     </button>

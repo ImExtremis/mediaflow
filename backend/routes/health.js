@@ -16,7 +16,7 @@ const SERVICES = [
     { id: 'qbittorrent', name: 'qBittorrent', url: process.env.QBIT_URL || 'http://qbittorrent:8080', pingPath: '/api/v2/app/version' },
     { id: 'jellyfin', name: 'Jellyfin', url: process.env.JELLYFIN_URL || 'http://jellyfin:8096', pingPath: '/health' },
     { id: 'bazarr', name: 'Bazarr', url: process.env.BAZARR_URL || 'http://bazarr:6767', pingPath: '/ping' },
-    { id: 'overseerr', name: 'Overseerr', url: process.env.OVERSEERR_URL || 'http://overseerr:5055', pingPath: '/api/v1/status' },
+    { id: 'jellyseerr', name: 'Jellyseerr', url: process.env.JELLYSEERR_URL || 'http://jellyseerr:5055', pingPath: '/api/v1/status' },
     { id: 'tdarr', name: 'Tdarr', url: process.env.TDARR_URL || 'http://tdarr:8265', pingPath: '/' }
 ];
 

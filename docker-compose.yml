@@ -212,11 +212,11 @@ services:
     ports:
       - "${JELLYSEERR_PORT:-5055}:5055"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5055/api/v1/status" ]
+      test: ["CMD-SHELL", "curl -sf http://localhost:5055/api/v1/settings/public || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   # ── Tdarr (Auto Transcoding) ─────────────────────────────────
   tdarr:
