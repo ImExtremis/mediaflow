@@ -144,7 +144,12 @@ router.post('/rollback', (req, res) => {
 
 function startUpdateProcess(cmdArgs) {
     updateLogs = [];
-    currentUpdateProcess = spawn(cmdArgs[0], cmdArgs.slice(1), { cwd: path.join(__dirname, '../../../') });
+    const spawnEnv = { ...process.env, MEDIAFLOW_AUTH: '1' };
+    currentUpdateProcess = spawn(cmdArgs[0], cmdArgs.slice(1), {
+        cwd: path.join(__dirname, '../../../'),
+        env: spawnEnv,
+        detached: true
+    });
 
     const broadcast = (data) => {
         const str = data.toString();
