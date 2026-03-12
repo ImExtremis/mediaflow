@@ -525,6 +525,11 @@ generate_api_keys() {
   else
     warn "Could not auto-detect LAN IP. Set SERVER_IP manually in .env for Quick Links to work."
   fi
+
+  # Ensure GITHUB_REPO is always present in .env
+  if ! grep -q "^GITHUB_REPO=" "$env_file" 2>/dev/null; then
+    echo "GITHUB_REPO=ImExtremis/media-flow" >> "$env_file" || true
+  fi
 }
 
 # ─── Setup Permissions ───────────────────────────────────────────────────
@@ -1091,7 +1096,7 @@ print_summary() {
   # terminal-display-accurate (emojis are 2 display cols but counted as
   # multiple bytes by bash; we measure with safe ASCII stand-ins here).
   local measure_lines=(
-    "  [OK] MediaFlow v1.4.0 installed successfully!"
+    "  [OK] MediaFlow v1.4.1 installed successfully!"
     "  [T]  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      ->  http://$host_ip:$dashboard_port"
     "  Radarr         ->  http://$host_ip:$radarr_port"
@@ -1111,7 +1116,7 @@ print_summary() {
   )
   # raw_lines holds the actual display text (with emojis) at matching indices
   local raw_lines=(
-    "  🎉  MediaFlow v1.4.0 installed successfully!"
+    "  🎉  MediaFlow v1.4.1 installed successfully!"
     "  ⏱  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      →  http://$host_ip:$dashboard_port"
     "  Radarr         →  http://$host_ip:$radarr_port"
@@ -1163,7 +1168,7 @@ print_summary() {
 
   echo ""
   echo -e "${GREEN}╔${top_border}╗${RESET}"
-  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.0 installed successfully!${RESET}"
+  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.1 installed successfully!${RESET}"
   print_line "${measure_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
   print_line "${measure_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"

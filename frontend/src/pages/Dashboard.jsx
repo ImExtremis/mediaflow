@@ -51,9 +51,9 @@ export default function Dashboard() {
         const id = setInterval(fetchHealth, 30000); // 30s polling
         // Fetch server LAN IP from backend
         apiFetch('/api/server/info')
-            .then(res => res.json())
-            .then(data => { if (data.ip) setServerIp(data.ip); })
-            .catch(() => { /* fallback to localhost */ });
+            .then(res => { if (res.ok) return res.json(); throw new Error('not ok'); })
+            .then(data => { if (data?.ip) setServerIp(data.ip); else setServerIp(window.location.hostname); })
+            .catch(() => setServerIp(window.location.hostname));
         return () => clearInterval(id);
     }, [fetchHealth]);
 
@@ -167,7 +167,7 @@ export default function Dashboard() {
                                         style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
-                                        onClick={() => window.open(`http://${serverIp && serverIp !== 'localhost' ? serverIp : window.location.hostname}:${servicePort}`, '_blank', 'noopener noreferrer')}
+                                        onClick={() => window.open(`http://${serverIp}:${servicePort}`, '_blank', 'noopener noreferrer')}
                                     >
                                         Open <ExternalLink size={14} />
                                     </button>
