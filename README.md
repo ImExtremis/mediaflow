@@ -32,6 +32,7 @@ That's it. The script handles everything automatically:
 - Ubuntu 20.04+, Debian 11+, Arch Linux, or macOS 12+
 - ≥10 GB free disk space (30GB+ recommended for media)
 - `sudo` access
+
 ![Version](https://img.shields.io/badge/Version-1.4.1-blue)
 
 ## 🩹 v1.4.1 Changelog: Bug Fix Release
