@@ -896,24 +896,30 @@ get_qbit_password() {
   
   while [[ $retries -gt 0 ]]; do
     ((retries--)) || true
-    QBIT_PASS=$(
-      ${compose_cmd} logs mediaflow_qbittorrent 2>&1 \
-      | grep -i "temporary password" \
-      | sed -e 's/.*: //' \
-      | tail -1 || true
-    )
+    # Primary: PCRE lookahead captures the password token directly
+    QBIT_PASS=$(${compose_cmd} logs mediaflow_qbittorrent 2>&1 \
+      | grep -oP "temporary password is provided for this session: \K\S+" \
+      | tail -1 || true)
+    
+    # Fallback: match any line containing 'temporary password' and grab last colon-delimited token
+    if [[ -z "$QBIT_PASS" ]]; then
+      QBIT_PASS=$(${compose_cmd} logs mediaflow_qbittorrent 2>&1 \
+        | grep -i "temporary password" \
+        | grep -oP ':\s*\K\S+$' \
+        | tail -1 || true)
+    fi
     
     # Strip any potential leading/trailing whitespace
-    QBIT_PASS=$(echo "$QBIT_PASS" | xargs)
+    QBIT_PASS=$(echo "$QBIT_PASS" | xargs 2>/dev/null || echo "$QBIT_PASS")
     
-    if [[ -n "$QBIT_PASS" && "$QBIT_PASS" != "Could not capture"* ]]; then
+    if [[ -n "$QBIT_PASS" ]]; then
       break
     fi
     sleep 3
   done
   
   if [[ -z "$QBIT_PASS" ]]; then
-    QBIT_PASS="Not found — check docker logs"
+    QBIT_PASS="Check: docker logs mediaflow_qbittorrent"
   fi
   stop_spinner "Captured credentials" || true
 }
@@ -972,11 +978,27 @@ wait_for_services() {
   # Print Summary Table
   echo -e "Container Status Summary:"
   for c in "${containers[@]}"; do
-    local st=$(${DOCKER_CMD:-docker} inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$c" 2>/dev/null || echo "Missing")
-    if [[ "$st" == "healthy" || "$st" == "running" ]]; then
+    local health_status
+    health_status=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Health.Status}}' "$c" 2>/dev/null || echo "")
+    local display_status
+    if [[ "$health_status" == "healthy" ]]; then
+      display_status="healthy"
+    elif [[ -z "$health_status" || "$health_status" == "<no value>" ]]; then
+      # No HEALTHCHECK defined — fall back to running status
+      local run_status
+      run_status=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Status}}' "$c" 2>/dev/null || echo "")
+      if [[ "$run_status" == "running" ]]; then
+        display_status="running"
+      else
+        display_status="${run_status:-missing}"
+      fi
+    else
+      display_status="$health_status"
+    fi
+    if [[ "$display_status" == "healthy" || "$display_status" == "running" ]]; then
       printf "  %-25s ${GREEN}✔ Healthy${RESET}\n" "$c"
     else
-      printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}\n" "$c" "$st"
+      printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}\n" "$c" "$display_status"
     fi
   done
   echo ""
@@ -1025,6 +1047,29 @@ print_summary() {
   local total_mins=$(( SECONDS / 60 ))
   local total_secs=$(( SECONDS % 60 ))
 
+  # Width-measurement lines use ASCII-only substitutions so ${#line} is
+  # terminal-display-accurate (emojis are 2 display cols but counted as
+  # multiple bytes by bash; we measure with safe ASCII stand-ins here).
+  local measure_lines=(
+    "  [OK] MediaFlow v1.4.0 installed successfully!"
+    "  [T]  Total time: $total_mins minutes $total_secs seconds"
+    "  Dashboard      ->  http://$host_ip:$dashboard_port"
+    "  Radarr         ->  http://$host_ip:$radarr_port"
+    "  Sonarr         ->  http://$host_ip:$sonarr_port"
+    "  Sonarr Anime   ->  http://$host_ip:$sonarr_anime_port"
+    "  Prowlarr       ->  http://$host_ip:$prowlarr_port"
+    "  qBittorrent    ->  http://$host_ip:$qbit_port"
+    "  Jellyfin       ->  http://$host_ip:$jellyfin_port"
+    "  Bazarr         ->  http://$host_ip:$bazarr_port"
+    "  Jellyseerr     ->  http://$host_ip:$jellyseerr_port"
+    "  Tdarr          ->  http://$host_ip:$tdarr_port"
+    "  YouTube        ->  ./data/yt-downloads"
+    "  qBittorrent credentials:"
+    "  Username: admin"
+    "  Password: ${QBIT_PASS:0:42}"
+    "  [!] Change default passwords after first login"
+  )
+  # raw_lines holds the actual display text (with emojis) at matching indices
   local raw_lines=(
     "  🎉  MediaFlow v1.4.0 installed successfully!"
     "  ⏱  Total time: $total_mins minutes $total_secs seconds"
@@ -1046,7 +1091,7 @@ print_summary() {
   )
 
   local max_len=0
-  for line in "${raw_lines[@]}"; do
+  for line in "${measure_lines[@]}"; do
     local len=${#line}
     if [[ $len -gt $max_len ]]; then
       max_len=$len
@@ -1078,26 +1123,26 @@ print_summary() {
 
   echo ""
   echo -e "${GREEN}╔${top_border}╗${RESET}"
-  print_line "${raw_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.0 installed successfully!${RESET}"
-  print_line "${raw_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
+  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.0 installed successfully!${RESET}"
+  print_line "${measure_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
-  print_line "${raw_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"
-  print_line "${raw_lines[3]}" "Radarr         →  ${CYAN}http://$host_ip:$radarr_port${RESET}"
-  print_line "${raw_lines[4]}" "Sonarr         →  ${CYAN}http://$host_ip:$sonarr_port${RESET}"
-  print_line "${raw_lines[5]}" "Sonarr Anime   →  ${CYAN}http://$host_ip:$sonarr_anime_port${RESET}"
-  print_line "${raw_lines[6]}" "Prowlarr       →  ${CYAN}http://$host_ip:$prowlarr_port${RESET}"
-  print_line "${raw_lines[7]}" "qBittorrent    →  ${CYAN}http://$host_ip:$qbit_port${RESET}"
-  print_line "${raw_lines[8]}" "Jellyfin       →  ${CYAN}http://$host_ip:$jellyfin_port${RESET}"
-  print_line "${raw_lines[9]}" "Bazarr         →  ${CYAN}http://$host_ip:$bazarr_port${RESET}"
-  print_line "${raw_lines[10]}" "Jellyseerr     →  ${CYAN}http://$host_ip:$jellyseerr_port${RESET}"
-  print_line "${raw_lines[11]}" "Tdarr          →  ${CYAN}http://$host_ip:$tdarr_port${RESET}"
-  print_line "${raw_lines[12]}" "YouTube        →  ${CYAN}./data/yt-downloads${RESET}"
+  print_line "${measure_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"
+  print_line "${measure_lines[3]}" "Radarr         →  ${CYAN}http://$host_ip:$radarr_port${RESET}"
+  print_line "${measure_lines[4]}" "Sonarr         →  ${CYAN}http://$host_ip:$sonarr_port${RESET}"
+  print_line "${measure_lines[5]}" "Sonarr Anime   →  ${CYAN}http://$host_ip:$sonarr_anime_port${RESET}"
+  print_line "${measure_lines[6]}" "Prowlarr       →  ${CYAN}http://$host_ip:$prowlarr_port${RESET}"
+  print_line "${measure_lines[7]}" "qBittorrent    →  ${CYAN}http://$host_ip:$qbit_port${RESET}"
+  print_line "${measure_lines[8]}" "Jellyfin       →  ${CYAN}http://$host_ip:$jellyfin_port${RESET}"
+  print_line "${measure_lines[9]}" "Bazarr         →  ${CYAN}http://$host_ip:$bazarr_port${RESET}"
+  print_line "${measure_lines[10]}" "Jellyseerr     →  ${CYAN}http://$host_ip:$jellyseerr_port${RESET}"
+  print_line "${measure_lines[11]}" "Tdarr          →  ${CYAN}http://$host_ip:$tdarr_port${RESET}"
+  print_line "${measure_lines[12]}" "YouTube        →  ${CYAN}./data/yt-downloads${RESET}"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
-  print_line "${raw_lines[13]}" "${BOLD}qBittorrent credentials:${RESET}"
-  print_line "${raw_lines[14]}" "Username: ${YELLOW}admin${RESET}"
-  print_line "${raw_lines[15]}" "Password: ${RED}${QBIT_PASS:0:42}${RESET}"
+  print_line "${measure_lines[13]}" "${BOLD}qBittorrent credentials:${RESET}"
+  print_line "${measure_lines[14]}" "Username: ${YELLOW}admin${RESET}"
+  print_line "${measure_lines[15]}" "Password: ${RED}${QBIT_PASS:0:42}${RESET}"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
-  print_line "${raw_lines[16]}" "${YELLOW}⚠  Change default passwords after first login${RESET}"
+  print_line "${measure_lines[16]}" "${YELLOW}⚠  Change default passwords after first login${RESET}"
   echo -e "${GREEN}╚${bot_border}╝${RESET}"
   echo ""
 }
