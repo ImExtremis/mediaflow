@@ -629,6 +629,55 @@ textarea {
     color: var(--text-muted);
 }
 
+/* ─── Select / Dropdown Dark Theme ───────────────────────────────────────────── */
+select,
+select.form-input {
+    background-color: #111827;
+    color: var(--text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 38px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+select:focus,
+select.form-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    background-color: rgba(139, 92, 246, 0.08);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+}
+
+select:hover,
+select.form-input:hover {
+    border-color: var(--color-border-hover);
+}
+
+select option,
+select.form-input option {
+    background-color: #1a2235;
+    color: var(--text-primary);
+    padding: 8px 12px;
+}
+
+/* Firefox specific fix */
+@-moz-document url-prefix() {
+    select,
+    select.form-input {
+        color: var(--text-primary);
+        background-color: #111827;
+    }
+}
+
+
 /* ─── Range Slider ────────────────────────────────────────────────────────────── */
 .slider-wrapper {
     display: flex;

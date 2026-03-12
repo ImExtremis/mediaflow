@@ -975,7 +975,7 @@ wait_for_services() {
   local containers=(
     "mediaflow_radarr" "mediaflow_sonarr" "mediaflow_qbittorrent"
     "mediaflow_jellyfin" "mediaflow_prowlarr" "mediaflow_bazarr"
-    "mediaflow_jellyseerr" "mediaflow_tdarr" "mediaflow_sonarr-anime"
+    "mediaflow_jellyseerr" "mediaflow_tdarr" "mediaflow_sonarr_anime"
   )
   local total=${#containers[@]}
   local timeout=$(( SECONDS + 180 ))
