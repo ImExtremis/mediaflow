@@ -9,6 +9,18 @@ set -euo pipefail
 # Global error trap — always show which line failed
 trap 'echo -e "\n[ERROR] Install failed at line $LINENO — command: $BASH_COMMAND" >&2; echo "[ERROR] Check ~/mediaflow/logs/install.log for details" >&2' ERR
 
+# Cleanup: bring stack down (only called on failure)
+cleanup() {
+  local _dir="${INSTALL_DIR:-$(dirname "$(readlink -f "$0")")}"  
+  if [[ -f "$_dir/docker-compose.yml" ]] || [[ -f "$_dir/compose.yml" ]]; then
+    echo -e "\n[CLEANUP] Non-zero exit — tearing down containers..." >&2
+    ${DOCKER_CMD:-docker} compose --project-directory "$_dir" down >/dev/null 2>&1 || true
+  fi
+}
+
+# EXIT trap — only tear down on failure (non-zero exit code)
+trap 'if [[ $? -ne 0 ]]; then cleanup; fi' EXIT
+
 # Test if ANSI escape codes crash the terminal
 echo -e "\033[0m" >/dev/null 2>&1 || true
 
@@ -938,6 +950,13 @@ get_qbit_password() {
   if [[ -z "$QBIT_PASS" ]]; then
     QBIT_PASS="Check: docker logs mediaflow_qbittorrent"
   fi
+
+  # Write the captured password to .env so the backend can authenticate
+  if [[ -n "$QBIT_PASS" && "$QBIT_PASS" != "Check: docker logs mediaflow_qbittorrent" ]]; then
+    sed -i "s/^QBIT_PASS=.*/QBIT_PASS=${QBIT_PASS}/" "$INSTALL_DIR/.env" || \
+    echo "QBIT_PASS=${QBIT_PASS}" >> "$INSTALL_DIR/.env"
+  fi
+
   stop_spinner "Captured credentials" || true
 }
 
