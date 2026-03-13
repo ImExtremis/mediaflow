@@ -181,7 +181,7 @@ async function runTrendingJob() {
     // Movies
     if (config.source === 'both' || config.source === 'movie') {
         try {
-            const res = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`);
+            const res = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&region=IN`);
             const movies = res.data.results || [];
             let processed = 0;
 
@@ -206,7 +206,7 @@ async function runTrendingJob() {
     // TV
     if (config.source === 'both' || config.source === 'tv') {
         try {
-            const res = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}`);
+            const res = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&region=IN`);
             const shows = res.data.results || [];
             let processed = 0;
 
@@ -283,7 +283,7 @@ router.put('/config', (req, res) => {
 router.get('/movies', async (req, res) => {
     if (!TMDB_API_KEY) return res.status(500).json({ error: 'TMDB API key not configured' });
     try {
-        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`);
+        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&region=IN`);
         const radarrUrl = process.env.RADARR_URL || 'http://radarr:7878';
         const radarrApiKey = process.env.RADARR_API_KEY;
 
@@ -318,7 +318,7 @@ router.get('/movies', async (req, res) => {
 router.get('/shows', async (req, res) => {
     if (!TMDB_API_KEY) return res.status(500).json({ error: 'TMDB API key not configured' });
     try {
-        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}`);
+        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&region=IN`);
         const sonarrUrl = process.env.SONARR_URL || 'http://sonarr:8989';
         const sonarrApiKey = process.env.SONARR_API_KEY;
 

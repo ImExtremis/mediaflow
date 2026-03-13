@@ -57,6 +57,7 @@ export default function Trending() {
     const [loading, setLoading] = useState(true);
     const [statusData, setStatusData] = useState(null);
     const [runningInfo, setRunningInfo] = useState({ lastRun: null, nextRun: null });
+    const [noTmdbKey, setNoTmdbKey] = useState(false);
 
     // Platform section state: { [platformId]: { loading, noApiKey, movies: [], shows: [] } }
     const [platformData, setPlatformData] = useState({});
@@ -68,8 +69,15 @@ export default function Trending() {
             if (res.ok) {
                 const data = await res.json();
                 setItems(data);
+                setNoTmdbKey(false);
             } else {
-                showToast('Failed to fetch trending', 'error');
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 500 && data?.error?.includes('TMDB API key')) {
+                    setNoTmdbKey(true);
+                    setItems([]);
+                } else {
+                    showToast('Failed to fetch trending', 'error');
+                }
             }
         } catch (e) {
             console.error(e);
@@ -281,9 +289,24 @@ export default function Trending() {
                             </div>
                         ))}
                         {items.length === 0 && !loading && (
-                            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                No trending {type} found. Check TMDB API key in .env.
-                            </div>
+                            noTmdbKey ? (
+                                <div style={{ gridColumn: '1 / -1', padding: '30px', textAlign: 'center', background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: '10px', color: '#eab308' }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '12px' }}>🔑 TMDB API Key Required</div>
+                                    <div style={{ marginBottom: '12px', lineHeight: 1.6 }}>
+                                        To enable trending, get a free API key from{' '}
+                                        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: '#eab308' }}>themoviedb.org</a>{' '}
+                                        and add it to your <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>.env</code> file:
+                                    </div>
+                                    <code style={{ display: 'block', background: 'rgba(0,0,0,0.4)', padding: '10px 16px', borderRadius: '6px', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
+                                        TMDB_API_KEY=your_key_here
+                                    </code>
+                                    <div style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Then restart the backend container: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>docker compose restart backend</code></div>
+                                </div>
+                            ) : (
+                                <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    No trending {type} found.
+                                </div>
+                            )
                         )}
                     </div>
                 )
