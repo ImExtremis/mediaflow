@@ -44,8 +44,13 @@ export default function Login() {
                         <img
                             src="/logo.png"
                             alt="MediaFlow"
-                            className="w-16 h-16 rounded-2xl object-contain"
-                            style={{ filter: 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.5))' }}
+                            style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '16px',
+                                objectFit: 'contain',
+                                filter: 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.5))'
+                            }}
                         />
                     </div>
                     <h1>MediaFlow</h1>
