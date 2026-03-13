@@ -4,6 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UPDATE_SCRIPT="$SCRIPT_DIR/scripts/do-update.sh"
 
+# Self-heal state, backups, and logs directory permissions before doing anything
+# Ensures the updater always works even after fresh installs or permission resets
+mkdir -p "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs"
+chmod 775 "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+chown "$(whoami):$(whoami)" "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+
+
 # Require password if not already authenticated
 if [[ "${MEDIAFLOW_AUTH:-}" != "1" ]]; then
   read -rsp "MediaFlow update password: " PASSWORD

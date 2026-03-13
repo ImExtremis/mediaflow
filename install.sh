@@ -127,7 +127,7 @@ render_header() {
 
   echo ""
   echo -e "${CYAN}╔${border}╗${RESET}"
-  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.1${RESET}${title_spaces}${CYAN}║${RESET}"
+  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.2${RESET}${title_spaces}${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}${prog_spaces}${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}${phase_prefix}%s${phase_spaces}${CYAN}║${RESET}\n" "$phase_val"
   echo -e "${CYAN}╚${border}╝${RESET}"
@@ -250,7 +250,7 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.1${RESET}"
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.2${RESET}"
   echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr"
   echo ""
 }
@@ -574,8 +574,16 @@ setup_permissions() {
   # Fix for root-owned logs directory preventing log_to_file calls inside this function
   sudo chown -R "${SUDO_USER:-$USER}" "$INSTALL_DIR/logs" 2>/dev/null || true
 
-  # Avoid breaking if yt-downloads does not exist yet
+  # Explicitly create and permission the YouTube downloads directory
   sudo mkdir -p "$INSTALL_DIR/data/yt-downloads"
+  sudo chown -R "${PUID:-999}:${PGID:-987}" "$INSTALL_DIR/data/yt-downloads"
+  sudo chmod -R 775 "$INSTALL_DIR/data/yt-downloads"
+
+  # Ensure state directory is always writable by the install user
+  # (root cause of update script Permission denied on fresh installs)
+  sudo mkdir -p "$INSTALL_DIR/state"
+  sudo chown -R "$(whoami):$(whoami)" "$INSTALL_DIR/state"
+  sudo chmod -R 775 "$INSTALL_DIR/state"
   
   if [[ -f "$INSTALL_DIR/config/qBittorrent.conf" ]]; then
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
@@ -835,15 +843,8 @@ deploy_stack() {
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
   
-  local SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
-  local TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
-  local BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "true")
-
-  # Define specific services to start based on toggles
-  local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
-  [[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
-  [[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr"
-  [[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
+  # Always start all services (sonarr-anime, tdarr, bazarr are always enabled as of v1.4.2)
+  local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
   
   stop_spinner >/dev/null 2>&1 || true
   echo "[INFO] Starting MediaFlow stack..."
@@ -1042,6 +1043,8 @@ wait_for_services() {
     fi
     if [[ "$display_status" == "healthy" || "$display_status" == "running" ]]; then
       printf "  %-25s ${GREEN}✔ Healthy${RESET}\n" "$c"
+    elif [[ "$display_status" == "starting" ]]; then
+      printf "  %-25s ${YELLOW}⏳ Starting...${RESET}\n" "$c"
     else
       printf "  %-25s ${RED}✗ Unhealthy (%s)${RESET}\n" "$c" "$display_status"
     fi
@@ -1096,7 +1099,7 @@ print_summary() {
   # terminal-display-accurate (emojis are 2 display cols but counted as
   # multiple bytes by bash; we measure with safe ASCII stand-ins here).
   local measure_lines=(
-    "  [OK] MediaFlow v1.4.1 installed successfully!"
+    "  [OK] MediaFlow v1.4.2 installed successfully!"
     "  [T]  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      ->  http://$host_ip:$dashboard_port"
     "  Radarr         ->  http://$host_ip:$radarr_port"
@@ -1116,7 +1119,7 @@ print_summary() {
   )
   # raw_lines holds the actual display text (with emojis) at matching indices
   local raw_lines=(
-    "  🎉  MediaFlow v1.4.1 installed successfully!"
+    "  🎉  MediaFlow v1.4.2 installed successfully!"
     "  ⏱  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      →  http://$host_ip:$dashboard_port"
     "  Radarr         →  http://$host_ip:$radarr_port"
@@ -1168,7 +1171,7 @@ print_summary() {
 
   echo ""
   echo -e "${GREEN}╔${top_border}╗${RESET}"
-  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.1 installed successfully!${RESET}"
+  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.2 installed successfully!${RESET}"
   print_line "${measure_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
   print_line "${measure_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"

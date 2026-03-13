@@ -380,4 +380,75 @@ router.post('/add', async (req, res) => {
     }
 });
 
+// ── Platform Trending Endpoint ──────────────────────────────────────────────
+// Provider IDs for India (watch_region=IN):
+//   Netflix=8, Amazon Prime=119, Disney+ Hotstar=122, Apple TV+=2
+router.get('/platform/:providerId/:type', async (req, res) => {
+    if (!TMDB_API_KEY) {
+        return res.json({ noApiKey: true, results: [] });
+    }
+
+    const { providerId, type } = req.params;
+    const mediaType = type === 'tv' ? 'tv' : 'movie';
+
+    try {
+        const tmdbRes = await axios.get(
+            `https://api.themoviedb.org/3/discover/${mediaType}`,
+            {
+                params: {
+                    api_key: TMDB_API_KEY,
+                    with_watch_providers: providerId,
+                    watch_region: 'IN',
+                    sort_by: 'popularity.desc',
+                    page: 1
+                }
+            }
+        );
+
+        const results = (tmdbRes.data.results || []).slice(0, 20);
+
+        let existingItems = [];
+        if (mediaType === 'movie') {
+            const radarrUrl = process.env.RADARR_URL || 'http://radarr:7878';
+            const radarrApiKey = process.env.RADARR_API_KEY;
+            try {
+                const r = await axios.get(`${radarrUrl}/api/v3/movie`, { headers: { 'X-Api-Key': radarrApiKey } });
+                existingItems = r.data || [];
+            } catch (e) {}
+        } else {
+            const sonarrUrl = process.env.SONARR_URL || 'http://sonarr:8989';
+            const sonarrApiKey = process.env.SONARR_API_KEY;
+            try {
+                const r = await axios.get(`${sonarrUrl}/api/v3/series`, { headers: { 'X-Api-Key': sonarrApiKey } });
+                existingItems = r.data || [];
+            } catch (e) {}
+        }
+
+        const mapped = results.map(item => {
+            let status = 'missing';
+            if (mediaType === 'movie') {
+                const match = existingItems.find(m => m.tmdbId === item.id);
+                if (match) status = match.hasFile ? 'available' : 'downloading';
+            } else {
+                const match = existingItems.find(s => s.title.toLowerCase() === (item.name || '').toLowerCase());
+                if (match) status = match.statistics?.percentOfEpisodes === 100 ? 'available' : 'downloading';
+            }
+            return {
+                tmdbId: item.id,
+                title: item.title || item.name,
+                year: (item.release_date || item.first_air_date || '').substring(0, 4),
+                posterURL: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+                rating: item.vote_average,
+                status
+            };
+        });
+
+        res.json({ noApiKey: false, results: mapped });
+    } catch (e) {
+        console.error('Platform trending fetch failed:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
+

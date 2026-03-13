@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 # =============================================================================
 #  MediaFlow · scripts/do-update.sh
 #  The actual updater — called by update.sh after git pull
@@ -20,15 +19,18 @@ warn()    { echo -e "${YELLOW}[WARN]${RESET}  $*"; }
 error()   { echo -e "${RED}[ERROR]${RESET} $*" >&2; }
 die()     { error "$*"; exit 1; }
 
+# Self-heal state, backups, and logs directory permissions
+# This runs before anything else so fresh installs never get Permission denied
+mkdir -p "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs"
+chmod 775 "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+chown "$(whoami):$(whoami)" "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+
 # --skip-pull is accepted but effectively a no-op here; pull was done by update.sh
 SKIP_PULL=false
 if [[ "${1:-}" == "--skip-pull" ]]; then
   SKIP_PULL=true
   shift
 fi
-
-# Global error trap
-trap 'auto_rollback' ERR
 
 # Record start time and old version for history
 START_TIME=$(date +%s)
@@ -60,12 +62,21 @@ auto_rollback() {
   info "Stopping containers..."
   docker compose down --remove-orphans >/dev/null 2>&1 || true
 
-  info "Restoring files from backup ($BACKUP_DIR)..."
-  if [[ -n "$BACKUP_DIR" && -d "$BACKUP_DIR" ]]; then
-    cp -f "$BACKUP_DIR/docker-compose.yml" ./ 2>/dev/null || true
-    cp -f "$BACKUP_DIR/.env" ./ 2>/dev/null || true
-    cp -f "$BACKUP_DIR/VERSION" ./ 2>/dev/null || true
+  # Pre-rollback check: only restore if backup is valid and non-empty
+  if [[ -z "$BACKUP_DIR" || ! -d "$BACKUP_DIR" || -z "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]]; then
+    warn "No valid backup found — skipping restore, restarting containers from current state"
+    docker compose up -d --remove-orphans || true
+    sleep 10
+    rm -f "$SCRIPT_DIR/state/maintenance"
+    echo -e "${YELLOW}Rollback skipped (no backup) — containers restarted from current state${RESET}"
+    record_history "rollback_no_backup" "$OLD_VERSION"
+    exit 1
   fi
+
+  info "Restoring files from backup ($BACKUP_DIR)..."
+  cp -f "$BACKUP_DIR/docker-compose.yml" ./ 2>/dev/null || true
+  cp -f "$BACKUP_DIR/.env" ./ 2>/dev/null || true
+  cp -f "$BACKUP_DIR/VERSION" ./ 2>/dev/null || true
 
   info "Reverting any pulled code changes..."
   git stash || true
@@ -85,12 +96,10 @@ auto_rollback() {
   sleep 10
 
   info "Disabling maintenance mode..."
-  rm -f ./state/maintenance
+  rm -f "$SCRIPT_DIR/state/maintenance"
 
   echo -e "${YELLOW}Rollback completed successfully — your system is restored to the previous version${RESET}"
-  if [[ -n "$BACKUP_DIR" ]]; then
-    echo -e "Backup path: ${CYAN}$BACKUP_DIR${RESET}"
-  fi
+  echo -e "Backup path: ${CYAN}$BACKUP_DIR${RESET}"
 
   record_history "rollback" "$OLD_VERSION"
   exit 1
@@ -139,12 +148,16 @@ cp -r config appdata "$BACKUP_DIR/" 2>/dev/null || true
 bash backup.sh --auto 2>/dev/null || warn "backup.sh skipped or failed"
 success "Backup saved to $BACKUP_DIR"
 
+# After backup is done, switch to non-fatal mode.
+# Only auto_rollback will be called explicitly on critical failures.
+set +e
+
 # -----------------------------------------------------------------------------
 # STEP 3: Enable maintenance mode
 # -----------------------------------------------------------------------------
 info "Step 3: Enabling maintenance mode..."
-mkdir -p ./state
-echo "MAINTENANCE=true" > ./state/maintenance
+mkdir -p "$SCRIPT_DIR/state"
+echo "MAINTENANCE=true" > "$SCRIPT_DIR/state/maintenance"
 success "Maintenance mode enabled."
 
 # -----------------------------------------------------------------------------
@@ -155,6 +168,26 @@ if [[ "$SKIP_PULL" == "true" ]]; then
 else
   info "Step 4: Git pull was done by update.sh launcher."
 fi
+
+# -----------------------------------------------------------------------------
+# STEP 4b: Build frontend Vite bundle
+# -----------------------------------------------------------------------------
+info "Step 4b: Building frontend..."
+cd "$SCRIPT_DIR/frontend"
+if npm ci --prefer-offline 2>&1 | tail -5; then
+  npm run build 2>&1 | tail -10
+  BUILD_EXIT=${PIPESTATUS[0]}
+else
+  BUILD_EXIT=1
+fi
+
+if [[ $BUILD_EXIT -ne 0 ]]; then
+  cd "$SCRIPT_DIR"
+  error "Frontend build failed — check npm run build output above"
+  auto_rollback
+fi
+cd "$SCRIPT_DIR"
+success "Frontend built successfully."
 
 # -----------------------------------------------------------------------------
 # STEP 5: Compare changes
@@ -199,16 +232,14 @@ success "Frontend and backend rebuilt successfully."
 # STEP 10: Start containers
 # -----------------------------------------------------------------------------
 info "Step 10: Starting containers..."
-SONARR_ANIME_ENABLED=$(grep "^SONARR_ANIME_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
-TDARR_ENABLED=$(grep "^TDARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
-BAZARR_ENABLED=$(grep "^BAZARR_ENABLED=" "./.env" | cut -d= -f2 || echo "true")
 
-core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend"
-[[ "$SONARR_ANIME_ENABLED" == "true" ]] && core_services+=" sonarr-anime"
-[[ "$TDARR_ENABLED" == "true" ]] && core_services+=" tdarr tdarr-node"
-[[ "$BAZARR_ENABLED" == "true" ]] && core_services+=" bazarr"
+# Always start all services (sonarr-anime, tdarr, bazarr always enabled as of v1.4.2)
+core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr tdarr-node bazarr"
 
-docker compose up -d --remove-orphans $core_services
+if ! docker compose up -d --remove-orphans $core_services; then
+  error "docker compose up failed — triggering rollback."
+  auto_rollback
+fi
 success "Containers started."
 
 # -----------------------------------------------------------------------------
@@ -229,7 +260,7 @@ done
 
 if ! $all_healthy; then
   error "Some containers failed to start or remain healthy."
-  false # Trigger the trap
+  auto_rollback
 fi
 success "All containers are running stably."
 
@@ -246,9 +277,12 @@ done
 
 if ! $frontend_ready; then
   error "Frontend failed to respond after rebuild."
-  false # Trigger the trap
+  auto_rollback
 fi
 success "Frontend is successfully responding."
+
+# Re-enable strict mode now that critical steps are done
+set -e
 
 # -----------------------------------------------------------------------------
 # STEP 12: Update the VERSION file
@@ -265,7 +299,7 @@ success "Version is now $NEW_VERSION"
 # STEP 13: Disable maintenance mode
 # -----------------------------------------------------------------------------
 info "Step 13: Disabling maintenance mode..."
-rm -f ./state/maintenance
+rm -f "$SCRIPT_DIR/state/maintenance"
 success "Maintenance mode disabled."
 
 # -----------------------------------------------------------------------------
@@ -301,6 +335,4 @@ echo -e "${GREEN}All data paths verified writable.${RESET}"
 
 record_history "success" "$NEW_VERSION"
 
-# Clear the trap on successful completion
-trap - ERR
 exit 0
