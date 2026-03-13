@@ -156,15 +156,28 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                                 <div style={{ marginTop: '15px' }}>
-                                    <button
-                                        className="btn btn-ghost"
-                                        style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
-                                        onClick={() => window.open(`http://${window.location.hostname}:${servicePort}`, '_blank', 'noopener noreferrer')}
-                                    >
-                                        Open <ExternalLink size={14} />
-                                    </button>
+                                    <a
+                                    href={serviceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-ghost"
+                                    style={{
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${meta.color}55`,
+                                        color: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        textDecoration: 'none',
+                                        padding: '8px 16px',
+                                        borderRadius: '6px'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
+                                >
+                                    Open <ExternalLink size={14} />
+                                </a>
                                 </div>
                             </div>
                         );

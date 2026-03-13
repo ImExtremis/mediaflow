@@ -1,6 +1,6 @@
 {
     "name": "mediaflow-backend",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "description": "Backend API for MediaFlow array stack",
     "main": "server.js",
     "scripts": {
