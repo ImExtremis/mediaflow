@@ -169,6 +169,12 @@ else
   info "Step 4: Git pull was done by update.sh launcher."
 fi
 
+info "Changes in this update:"
+git -C "$SCRIPT_DIR" diff HEAD@{1} HEAD --stat 2>/dev/null | while IFS= read -r line; do
+  echo "  $line"
+done
+echo ""
+
 # -----------------------------------------------------------------------------
 # STEP 4b: Build frontend and backend Docker images
 # -----------------------------------------------------------------------------
@@ -226,7 +232,7 @@ success "Frontend and backend rebuilt successfully."
 info "Step 10: Starting containers..."
 
 # Always start all services (sonarr-anime, tdarr, bazarr always enabled as of v1.4.2)
-core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr tdarr-node bazarr"
+core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
 
 if ! docker compose up -d --remove-orphans $core_services; then
   error "docker compose up failed — triggering rollback."
