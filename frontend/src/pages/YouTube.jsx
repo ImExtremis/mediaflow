@@ -12,6 +12,7 @@ export default function YouTube() {
     const [jobs, setJobs] = useState([]);
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedFile, setSelectedFile] = useState(null);
 
     const fetchData = async () => {
         try {
@@ -183,12 +184,14 @@ export default function YouTube() {
                             </thead>
                             <tbody>
                                 {files.map(f => (
-                                    <tr key={f.name} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                        <td style={{ padding: '12px 0', wordBreak: 'break-all', paddingRight: '15px' }}>{f.name}</td>
+                                    <tr key={f.name} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', background: selectedFile === f.name ? 'rgba(99,102,241,0.1)' : 'transparent' }}
+                                        onClick={() => setSelectedFile(prev => prev === f.name ? null : f.name)}
+                                    >
+                                        <td style={{ padding: '12px 0', wordBreak: 'break-all', paddingRight: '15px', color: selectedFile === f.name ? 'var(--accent-primary)' : 'inherit' }}>▶ {f.name}</td>
                                         <td style={{ whiteSpace: 'nowrap' }}>{formatBytes(f.size)}</td>
                                         <td style={{ whiteSpace: 'nowrap' }}>{new Date(f.created).toLocaleDateString()}</td>
                                         {user?.role === 'admin' && (
-                                            <td style={{ textAlign: 'right' }}>
+                                            <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                                                 <button 
                                                     className="btn-icon" 
                                                     style={{ color: '#ef4444' }}
@@ -206,6 +209,25 @@ export default function YouTube() {
                     </div>
                 )}
             </div>
+
+            {/* Video Preview Player */}
+            {selectedFile && (
+                <div className="card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1rem' }}>▶ Preview: {selectedFile}</h3>
+                        <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: '0.85rem' }} onClick={() => setSelectedFile(null)}>✕ Close</button>
+                    </div>
+                    <video
+                        key={selectedFile}
+                        controls
+                        autoPlay
+                        style={{ width: '100%', maxHeight: '400px', borderRadius: '8px', background: '#000' }}
+                    >
+                        <source src={`/api/youtube/stream/${encodeURIComponent(selectedFile)}`} />
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            )}
 
         </div>
     );
