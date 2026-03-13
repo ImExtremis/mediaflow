@@ -119,14 +119,13 @@ function ToastContainer() {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar() {
     const { user, logout } = useAuth();
-    const [version, setVersion] = useState('v1.4.0');
-    // We'll optionally fetch backend version to ensure synceAuth();
+    const [version, setVersion] = useState('v1.4.3');
 
     useEffect(() => {
-        apiFetch('/api/update/check')
+        apiFetch('/api/version')
             .then(res => res.json())
             .then(data => {
-                if (data.currentVersion) setVersion(data.currentVersion);
+                if (data.version) setVersion(data.version);
             })
             .catch(() => { });
     }, []);

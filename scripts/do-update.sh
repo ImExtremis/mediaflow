@@ -231,7 +231,7 @@ success "Frontend and backend rebuilt successfully."
 # -----------------------------------------------------------------------------
 info "Step 10: Starting containers..."
 
-# Always start all services (sonarr-anime, tdarr, bazarr always enabled as of v1.4.2)
+# Always start all services (sonarr-anime, tdarr, bazarr always enabled)
 core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
 
 if ! docker compose up -d --remove-orphans $core_services; then

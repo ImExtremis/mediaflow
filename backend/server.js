@@ -22,6 +22,12 @@ const { requireAuth, requireAdmin } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const VERSION_FILE = path.join(__dirname, '../VERSION');
+
+// Read version once at startup, fall back gracefully
+function readVersion() {
+  try { return fs.readFileSync(VERSION_FILE, 'utf8').trim(); } catch { return 'unknown'; }
+}
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: '*' }));
@@ -43,12 +49,18 @@ app.use((req, res, next) => {
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.4.1' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: readVersion() });
 });
 
 // ─── Server Info (public – needed by frontend for Quick Links) ─────────────────
 app.get('/api/server/info', (_req, res) => {
-  res.json({ ip: process.env.SERVER_IP || 'localhost' });
+  const ip = process.env.SERVER_IP || process.env.HOST_IP || 'localhost';
+  res.json({ ip });
+});
+
+// ─── Version (public) ─────────────────────────────────────────────────────────
+app.get('/api/version', (_req, res) => {
+  res.json({ version: readVersion() });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
