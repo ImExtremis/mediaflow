@@ -170,24 +170,16 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 4b: Build frontend Vite bundle
+# STEP 4b: Build frontend and backend Docker images
 # -----------------------------------------------------------------------------
-info "Step 4b: Building frontend..."
-cd "$SCRIPT_DIR/frontend"
-if npm ci --prefer-offline 2>&1 | tail -5; then
-  npm run build 2>&1 | tail -10
-  BUILD_EXIT=${PIPESTATUS[0]}
-else
-  BUILD_EXIT=1
-fi
-
-if [[ $BUILD_EXIT -ne 0 ]]; then
-  cd "$SCRIPT_DIR"
-  error "Frontend build failed — check npm run build output above"
-  auto_rollback
-fi
+info "Step 4b: Building frontend and backend Docker images..."
 cd "$SCRIPT_DIR"
-success "Frontend built successfully."
+docker compose build --no-cache frontend backend 2>&1
+BUILD_EXIT=$?
+if [[ $BUILD_EXIT -ne 0 ]]; then
+  die "Frontend/backend Docker build failed (exit $BUILD_EXIT)"
+fi
+success "Frontend and backend images built successfully."
 
 # -----------------------------------------------------------------------------
 # STEP 5: Compare changes
