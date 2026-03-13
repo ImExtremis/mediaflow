@@ -285,8 +285,14 @@ services:
       - JELLYFIN_API_KEY=${JELLYFIN_API_KEY:-}
       - QBIT_USER=${QBIT_USER:-admin}
       - QBIT_PASS=${QBIT_PASS:-adminpassword}
+      - SERVER_IP=${SERVER_IP:-localhost}
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - GITHUB_REPO=${GITHUB_REPO:-ImExtremis/mediaflow}
+      - CONFIG_PATH=/app/config/config.json
+      - STATE_DIR=/app/state
     volumes:
       - ./config:/app/config
+      - ./state:/app/state
       - ./data:/data:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./.env:/app/.env

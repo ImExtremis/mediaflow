@@ -127,7 +127,7 @@ render_header() {
 
   echo ""
   echo -e "${CYAN}╔${border}╗${RESET}"
-  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.2${RESET}${title_spaces}${CYAN}║${RESET}"
+  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.3${RESET}${title_spaces}${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}${prog_spaces}${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}${phase_prefix}%s${phase_spaces}${CYAN}║${RESET}\n" "$phase_val"
   echo -e "${CYAN}╚${border}╝${RESET}"
@@ -250,7 +250,7 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.2${RESET}"
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.3${RESET}"
   echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr"
   echo ""
 }
@@ -843,7 +843,7 @@ deploy_stack() {
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
   
-  # Always start all services (sonarr-anime, tdarr, bazarr are always enabled as of v1.4.2)
+  # Always start all services (sonarr-anime, tdarr, bazarr always enabled)
   local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
   
   stop_spinner >/dev/null 2>&1 || true
@@ -1098,8 +1098,10 @@ print_summary() {
   # Width-measurement lines use ASCII-only substitutions so ${#line} is
   # terminal-display-accurate (emojis are 2 display cols but counted as
   # multiple bytes by bash; we measure with safe ASCII stand-ins here).
+  local INSTALL_VERSION
+  INSTALL_VERSION=$(cat "$INSTALL_DIR/VERSION" 2>/dev/null | tr -d '\r' || echo '1.4.3')
   local measure_lines=(
-    "  [OK] MediaFlow v1.4.2 installed successfully!"
+    "  [OK] MediaFlow v${INSTALL_VERSION} installed successfully!"
     "  [T]  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      ->  http://$host_ip:$dashboard_port"
     "  Radarr         ->  http://$host_ip:$radarr_port"
@@ -1119,7 +1121,7 @@ print_summary() {
   )
   # raw_lines holds the actual display text (with emojis) at matching indices
   local raw_lines=(
-    "  🎉  MediaFlow v1.4.2 installed successfully!"
+    "  🎉  MediaFlow v${INSTALL_VERSION} installed successfully!"
     "  ⏱  Total time: $total_mins minutes $total_secs seconds"
     "  Dashboard      →  http://$host_ip:$dashboard_port"
     "  Radarr         →  http://$host_ip:$radarr_port"
@@ -1171,7 +1173,7 @@ print_summary() {
 
   echo ""
   echo -e "${GREEN}╔${top_border}╗${RESET}"
-  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v1.4.2 installed successfully!${RESET}"
+  print_line "${measure_lines[0]}" "🎉  ${BOLD}MediaFlow v${INSTALL_VERSION} installed successfully!${RESET}"
   print_line "${measure_lines[1]}" "⏱  Total time: $total_mins minutes $total_secs seconds"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
   print_line "${measure_lines[2]}" "Dashboard      →  ${CYAN}http://$host_ip:$dashboard_port${RESET}"
