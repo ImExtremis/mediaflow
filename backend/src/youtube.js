@@ -144,4 +144,18 @@ router.delete('/files/:filename', (req, res) => {
     });
 });
 
+router.get('/stream/:filename', (req, res) => {
+    const filename = req.params.filename;
+    // Basic path traversal protection
+    if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        return res.status(400).json({ error: 'Invalid filename' });
+    }
+    const filePath = path.join('/data/yt-downloads', filename);
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+    res.sendFile(filePath);
+});
+
 module.exports = router;
+

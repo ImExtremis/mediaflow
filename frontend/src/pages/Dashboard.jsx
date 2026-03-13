@@ -30,7 +30,7 @@ export default function Dashboard() {
     const { config } = useConfig();
     const [healthState, setHealthState] = useState({ disk: {}, services: [], torrentStats: {}, queues: {} });
     const [loading, setLoading] = useState(true);
-    const [serverIp, setServerIp] = useState('localhost');
+    const [serverIp, setServerIp] = useState(window.location.hostname);
 
     const fetchHealth = useCallback(async () => {
         try {
@@ -49,10 +49,11 @@ export default function Dashboard() {
     useEffect(() => {
         fetchHealth();
         const id = setInterval(fetchHealth, 30000); // 30s polling
-        // Fetch server LAN IP from backend
+        // Set hostname immediately so quick links always work, then upgrade with backend LAN IP
+        setServerIp(window.location.hostname);
         apiFetch('/api/server/info')
             .then(res => { if (res.ok) return res.json(); throw new Error('not ok'); })
-            .then(data => { if (data?.ip) setServerIp(data.ip); else setServerIp(window.location.hostname); })
+            .then(data => { if (data?.ip) setServerIp(data.ip); })
             .catch(() => setServerIp(window.location.hostname));
         return () => clearInterval(id);
     }, [fetchHealth]);
@@ -114,7 +115,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="card" style={{ padding: '20px' }}>
+                <div className="card" style={{ padding: '20px', minHeight: '120px' }}>
                     <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>⏳ Processing Queues</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
