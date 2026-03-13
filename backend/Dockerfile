@@ -4,11 +4,14 @@ WORKDIR /app
 
 # Install dependencies first (caching layer)
 RUN apk add --no-cache docker-cli
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy source
-COPY . .
+# Copy backend source
+COPY backend/ .
+
+# Copy VERSION file from repo root so /api/version works inside container
+COPY VERSION ./VERSION
 
 # Config directory (mounted as volume)
 RUN mkdir -p /app/config

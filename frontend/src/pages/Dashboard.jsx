@@ -30,7 +30,6 @@ export default function Dashboard() {
     const { config } = useConfig();
     const [healthState, setHealthState] = useState({ disk: {}, services: [], torrentStats: {}, queues: {} });
     const [loading, setLoading] = useState(true);
-    const [serverIp, setServerIp] = useState(window.location.hostname);
 
     const fetchHealth = useCallback(async () => {
         try {
@@ -49,12 +48,6 @@ export default function Dashboard() {
     useEffect(() => {
         fetchHealth();
         const id = setInterval(fetchHealth, 30000); // 30s polling
-        // Set hostname immediately so quick links always work, then upgrade with backend LAN IP
-        setServerIp(window.location.hostname);
-        apiFetch('/api/server/info')
-            .then(res => { if (res.ok) return res.json(); throw new Error('not ok'); })
-            .then(data => { if (data?.ip) setServerIp(data.ip); })
-            .catch(() => setServerIp(window.location.hostname));
         return () => clearInterval(id);
     }, [fetchHealth]);
 
@@ -168,7 +161,7 @@ export default function Dashboard() {
                                         style={{ width: '100%', justifyContent: 'center', border: `1px solid ${meta.color}55`, color: '#fff' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = `${meta.color}22`; e.currentTarget.style.borderColor = meta.color; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${meta.color}55`; }}
-                                        onClick={() => window.open(`http://${serverIp}:${servicePort}`, '_blank', 'noopener noreferrer')}
+                                        onClick={() => window.open(`http://${window.location.hostname}:${servicePort}`, '_blank', 'noopener noreferrer')}
                                     >
                                         Open <ExternalLink size={14} />
                                     </button>

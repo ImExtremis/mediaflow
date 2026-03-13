@@ -1,0 +1,18 @@
+# Root-level .dockerignore for repo-root build context (backend service)
+# Keeps build context lean by excluding large/unnecessary directories
+
+# Frontend
+frontend/node_modules
+frontend/.next
+frontend/dist
+frontend/build
+
+# Backend (node_modules rebuilt inside container)
+backend/node_modules
+backend/npm-debug.log*
+
+# Git / IDE
+.git
+.gitignore
+*.md
+logs/
