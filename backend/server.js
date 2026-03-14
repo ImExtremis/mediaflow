@@ -22,7 +22,7 @@ const { requireAuth, requireAdmin } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const VERSION_FILE = path.join(__dirname, '../VERSION');
+const VERSION_FILE = path.join(__dirname, 'VERSION');
 
 // Read version once at startup, fall back gracefully
 function readVersion() {
