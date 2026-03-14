@@ -300,6 +300,12 @@ info "Step 13: Disabling maintenance mode..."
 rm -f "$SCRIPT_DIR/state/maintenance"
 success "Maintenance mode disabled."
 
+# Ensure new directories exist after update
+mkdir -p "$SCRIPT_DIR/data/media/youtube" 2>/dev/null || true
+chown -R $(whoami):$(whoami) "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+chmod -R 775 "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
+success "Directory structure synchronized."
+
 # -----------------------------------------------------------------------------
 # STEP 14: Print full post-update health report
 # -----------------------------------------------------------------------------

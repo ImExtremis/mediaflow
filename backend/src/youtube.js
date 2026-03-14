@@ -94,7 +94,26 @@ router.post('/download', (req, res) => {
     child.on('close', (code) => {
         jobStatus.progress = 100;
         jobStatus.status = code === 0 ? 'completed' : 'error';
-        if (code !== 0) jobStatus.title = `Error: Exit code ${code}`;
+        if (code !== 0) {
+            jobStatus.title = `Error: Exit code ${code}`;
+        } else if (currentTitle && currentTitle !== 'Downloading...') {
+            // Fix 5: Link or copy to media/youtube for Jellyfin indexing
+            const srcPath = path.join('/data/yt-downloads', currentTitle);
+            const destDir = '/data/media/youtube';
+            const destPath = path.join(destDir, currentTitle);
+            
+            try {
+                if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+                // Attempt hardlink (fastest, saves space), fallback to copy
+                try {
+                    fs.linkSync(srcPath, destPath);
+                } catch (linkErr) {
+                    fs.copyFileSync(srcPath, destPath);
+                }
+            } catch (err) {
+                console.error('[YouTube] Failed to move file to media dir:', err.message);
+            }
+        }
         activeDownloads.set(jobId, jobStatus);
         
         // Remove completed/errored jobs from active map after 15 minutes automatically to save memory

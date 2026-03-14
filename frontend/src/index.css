@@ -1081,22 +1081,71 @@ tbody tr:hover td {
     border-top: 1px solid var(--color-border);
 }
 
-/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+/* ─── Hamburger ────────────────────────────────────────────────────────── */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    padding: 10px;
+    background: none;
+    border: none;
+    z-index: 300;
+}
+
+.hamburger span {
+    width: 24px;
+    height: 2px;
+    background: var(--text-primary);
+    border-radius: 2px;
+    display: block;
+    transition: all 0.3s ease;
+}
+
+/* ─── Mobile Sidebar & Responsive ───────────────────────────────────────── */
 @media (max-width: 768px) {
+    .hamburger {
+        display: flex;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 250;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 240;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .sidebar-overlay.open {
+        display: block;
     }
 
     .main-content {
-        margin-left: 0;
-        padding: var(--spacing-md);
+        margin-left: 0 !important;
+        padding: var(--spacing-lg) var(--spacing-md);
     }
 
     .navbar {
-        left: 0;
+        left: 0 !important;
+        padding: 0 var(--spacing-sm);
+        display: flex;
+        align-items: center;
     }
 
     .navbar-logo {
-        display: none;
+        display: none !important;
     }
-}
+}

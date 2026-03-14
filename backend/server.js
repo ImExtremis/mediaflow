@@ -75,6 +75,17 @@ app.use('/api/indexers', requireAdmin, indexersRoutes);
 app.use('/api/jellyfin', requireAuth, jellyfinRoutes);
 app.use('/api/update', requireAdmin, updateRoutes);
 app.use('/api/trending', requireAuth, require('./src/trending'));
+
+// ─── YouTube stream (public – browser <video> cannot send JWT headers) ────────
+app.get('/api/youtube/stream/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
+  const filePath = path.join('/data/yt-downloads', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  res.sendFile(filePath);
+});
 app.use('/api/youtube', requireAuth, require('./src/youtube'));
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────

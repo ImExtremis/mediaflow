@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogOut, User } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-export default function Navbar() {
+export default function Navbar({ onHamburger }) {
     const { user, logout } = useAuth();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const location = useLocation();
@@ -34,6 +34,11 @@ export default function Navbar() {
 
     return (
         <header className="navbar">
+            <button className="hamburger" onClick={onHamburger}>
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <div className="navbar-logo">
                 <h1>MediaFlow</h1>
             </div>

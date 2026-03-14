@@ -286,7 +286,7 @@ services:
       - QBIT_USER=${QBIT_USER:-admin}
       - QBIT_PASS=${QBIT_PASS:-adminpassword}
       - SERVER_IP=${SERVER_IP:-localhost}
-      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - OMDB_API_KEY=${OMDB_API_KEY:-}
       - GITHUB_REPO=${GITHUB_REPO:-ImExtremis/mediaflow}
       - CONFIG_PATH=/app/config/config.json
       - STATE_DIR=/app/state
