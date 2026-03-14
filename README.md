@@ -384,6 +384,28 @@ You will be prompted for your update password (set during initial setup). The up
 
 If anything fails during the update, MediaFlow automatically rolls back to the previous version. The backup created at the start of the update is used to restore all files, and the stack is restarted from the previous state.
 
+### Update Password
+
+The update script requires a password to prevent accidental or unauthorised updates. This is stored in `.env` as `UPDATE_PASSWORD`.
+
+**Check or set your update password:**
+```bash
+grep "UPDATE_PASSWORD" ~/mediaflow/.env
+
+# Set a password if missing
+echo "UPDATE_PASSWORD=your_password_here" >> ~/mediaflow/.env
+```
+
+### Skipping the Password Prompt (Automation Only)
+
+If you need to run the update script non-interactively — for example from a cron job or CI pipeline — you can bypass the password prompt by setting `MEDIAFLOW_AUTH=1`:
+
+```bash
+MEDIAFLOW_AUTH=1 bash update.sh
+```
+
+> ⚠️ **Warning:** Never use `MEDIAFLOW_AUTH=1` in regular manual usage. It completely bypasses authentication. Only use it in controlled automated environments where you are certain no unauthorised access is possible. The dashboard's built-in update button handles authentication separately via JWT and uses this bypass internally.
+
 ### Update Channels
 
 - **Stable** — only installs tagged releases (recommended)
@@ -898,7 +920,7 @@ MediaFlow is released under the [MIT License](LICENSE).
 
 ### Author
 
-**Harsh** ([@ImExtremis](https://github.com/ImExtremis))
+**Extremis** ([@ImExtremis](https://github.com/ImExtremis))
 
 ---
 

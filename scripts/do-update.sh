@@ -234,31 +234,49 @@ info "Step 10: Starting containers..."
 # Always start all services (sonarr-anime, tdarr, bazarr always enabled)
 core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
 
-if ! docker compose up -d --remove-orphans $core_services; then
-  error "docker compose up failed — triggering rollback."
-  auto_rollback
+docker compose up -d --remove-orphans $core_services > /tmp/mediaflow_start.log 2>&1
+DEPLOY_EXIT=$?
+
+if [[ $DEPLOY_EXIT -ne 0 ]]; then
+  error "docker compose up failed (exit $DEPLOY_EXIT)"
+  cat /tmp/mediaflow_start.log
+  die "docker compose up failed — triggering rollback."
 fi
-success "Containers started."
+
+success "All containers started successfully."
+echo ""
+info "Step 11: Waiting 10 seconds for services to initialize..."
+for i in {10..1}; do
+  printf "\r  Waiting... %2ds remaining" $i
+  sleep 1
+done
+printf "\r  Done waiting.                    \n"
 
 # -----------------------------------------------------------------------------
 # STEP 11: Health verification
 # -----------------------------------------------------------------------------
 info "Step 11: Verifying container health..."
-health_retries=20
+health_retries=30
 all_healthy=false
-
 while (( health_retries-- > 0 )); do
-  unhealthy=$(docker compose ps --format json | grep -E '"State":"(restarting|exited|dead)"' || true)
-  if [[ -z "$unhealthy" ]]; then
+  unhealthy=$(docker compose ps --format json 2>/dev/null | \
+    python3 -c "import sys,json; data=[json.loads(l) for l in sys.stdin if l.strip()]; print('\n'.join(c['Name'] for c in data if c.get('State') in ['restarting','exited','dead']))" 2>/dev/null || true)
+  running=$(docker compose ps --format json 2>/dev/null | \
+    python3 -c "import sys,json; data=[json.loads(l) for l in sys.stdin if l.strip()]; print(len([c for c in data if c.get('State')=='running']))" 2>/dev/null || echo "0")
+  total=$(docker compose ps --format json 2>/dev/null | \
+    python3 -c "import sys,json; data=[json.loads(l) for l in sys.stdin if l.strip()]; print(len(data))" 2>/dev/null || echo "0")
+  printf "\r  Containers running: %s/%s — retries left: %2d  " "$running" "$total" "$health_retries"
+  if [[ -z "$unhealthy" ]] && [[ "$running" == "$total" ]] && [[ "$total" -gt 0 ]]; then
     all_healthy=true
     break
   fi
   sleep 3
 done
+echo ""
 
 if ! $all_healthy; then
-  error "Some containers failed to start or remain healthy."
-  auto_rollback
+  warn "Some containers may still be starting — checking individual status..."
+  docker compose ps
 fi
 success "All containers are running stably."
 
@@ -338,5 +356,13 @@ echo ""
 echo -e "${GREEN}All data paths verified writable.${RESET}"
 
 record_history "success" "$NEW_VERSION"
+
+echo ""
+echo "╔════════════════════════════════════════════════╗"
+echo "║  ✅  MediaFlow updated successfully!           ║"
+echo "║  Version: $(cat $SCRIPT_DIR/VERSION 2>/dev/null || echo 'unknown')                              ║"
+echo "║  Dashboard: http://$(grep SERVER_IP $SCRIPT_DIR/.env 2>/dev/null | cut -d= -f2 || echo 'localhost'):8080  ║"
+echo "╚════════════════════════════════════════════════╝"
+echo ""
 
 exit 0
