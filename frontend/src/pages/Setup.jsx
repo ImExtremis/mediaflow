@@ -81,7 +81,7 @@ export default function Setup() {
                             className="form-input"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
-                            placeholder="e.g. John Doe"
+                            placeholder="e.g. Extremis"
                             required
                         />
                     </div>

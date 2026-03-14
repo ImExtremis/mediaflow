@@ -57,7 +57,7 @@ export default function Trending() {
     const [loading, setLoading] = useState(true);
     const [statusData, setStatusData] = useState(null);
     const [runningInfo, setRunningInfo] = useState({ lastRun: null, nextRun: null });
-    const [noTmdbKey, setNoTmdbKey] = useState(false);
+    const [noOmdbKey, setNoOmdbKey] = useState(false);
 
     // Platform section state: { [platformId]: { loading, noApiKey, movies: [], shows: [] } }
     const [platformData, setPlatformData] = useState({});
@@ -72,8 +72,8 @@ export default function Trending() {
                 setNoTmdbKey(false);
             } else {
                 const data = await res.json().catch(() => ({}));
-                if (res.status === 500 && data?.error?.includes('TMDB API key')) {
-                    setNoTmdbKey(true);
+                if (res.status === 500 && data?.error?.includes('OMDB API key')) {
+                    setNoOmdbKey(true);
                     setItems([]);
                 } else {
                     showToast('Failed to fetch trending', 'error');
@@ -170,7 +170,7 @@ export default function Trending() {
             const res = await apiFetch('/api/trending/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tmdbId, type: type === 'movies' ? 'movie' : 'tv' })
+                body: JSON.stringify({ title: items.find(i => i.tmdbId === tmdbId)?.title || tmdbId, type: type === 'movies' ? 'movie' : 'tv' })
             });
             if (res.ok) {
                 showToast('Added successfully', 'success');
@@ -194,7 +194,7 @@ export default function Trending() {
             <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2>Trending Content</h2>
-                    <p>Discover and add popular movies and TV shows from TMDB</p>
+                    <p>Discover and add popular movies and TV shows via JustWatch & OMDB</p>
                 </div>
                 {user?.role === 'admin' && outerTab === 'all' && (
                     <button className="btn btn-primary" onClick={handleRunNow}>
@@ -289,16 +289,16 @@ export default function Trending() {
                             </div>
                         ))}
                         {items.length === 0 && !loading && (
-                            noTmdbKey ? (
+                            noOmdbKey ? (
                                 <div style={{ gridColumn: '1 / -1', padding: '30px', textAlign: 'center', background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: '10px', color: '#eab308' }}>
-                                    <div style={{ fontSize: '1.5rem', marginBottom: '12px' }}>🔑 TMDB API Key Required</div>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '12px' }}>🔑 OMDB API Key Required</div>
                                     <div style={{ marginBottom: '12px', lineHeight: 1.6 }}>
-                                        To enable trending, get a free API key from{' '}
-                                        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: '#eab308' }}>themoviedb.org</a>{' '}
+                                        To enable adding from trending, get a free API key from{' '}
+                                        <a href="http://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer" style={{ color: '#eab308' }}>omdbapi.com</a>{' '}
                                         and add it to your <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>.env</code> file:
                                     </div>
                                     <code style={{ display: 'block', background: 'rgba(0,0,0,0.4)', padding: '10px 16px', borderRadius: '6px', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
-                                        TMDB_API_KEY=your_key_here
+                                        OMDB_API_KEY=your_key_here
                                     </code>
                                     <div style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Then restart the backend container: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>docker compose restart backend</code></div>
                                 </div>
@@ -317,7 +317,7 @@ export default function Trending() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                     {anyNoApiKey && (
                         <div style={{ padding: '20px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid #eab308', borderRadius: '10px', color: '#eab308', textAlign: 'center', fontWeight: 'bold' }}>
-                            🔑 Add your TMDB API key to .env to enable trending
+                            🔑 Add your OMDB API key to .env to enable adding trending content
                         </div>
                     )}
                     {PLATFORMS.map(platform => {

@@ -117,7 +117,7 @@ function ToastContainer() {
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
-function Sidebar() {
+function Sidebar({ isOpen }) {
     const { user, logout } = useAuth();
     const [version, setVersion] = useState('v1.4.3');
 
@@ -148,7 +148,7 @@ function Sidebar() {
     const filteredNav = filterNav();
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar${isOpen ? ' open' : ''}`}>
             <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px 0 0' }}>
                 <img
                     src="/logo.png"
@@ -209,6 +209,14 @@ function Sidebar() {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const location = useLocation();
+
+    // Close sidebar on navigation
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [location.pathname]);
+
     return (
         <div className="app-container">
             <MaintenanceScreen />
@@ -220,9 +228,13 @@ export default function App() {
 
                 <Route path="/*" element={
                     <ProtectedRoute>
-                        <Navbar />
+                        <Navbar onHamburger={() => setSidebarOpen(!sidebarOpen)} />
                         <div className="app-layout">
-                            <Sidebar />
+                            <div 
+                                className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`} 
+                                onClick={() => setSidebarOpen(false)}
+                            />
+                            <Sidebar isOpen={sidebarOpen} />
                             <main className="main-content">
                                 <Routes>
                                     <Route path="/" element={<ProtectedRoute allowedRoles={['admin', 'requester']}><Dashboard /></ProtectedRoute>} />

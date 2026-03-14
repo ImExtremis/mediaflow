@@ -84,7 +84,11 @@ function getNextRun(scheduleStr) {
     return "Scheduled based on: " + scheduleStr;
 }
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const OMDB_API_KEY = process.env.OMDB_API_KEY;
+
+// JustWatch API for trending (no API key needed)
+const JUSTWATCH_API = 'https://apis.justwatch.com/content/titles/en_IN/popular';
+
 
 async function checkRadarrExists(tmdbId) {
     try {
@@ -159,76 +163,71 @@ async function addShowToSonarr(show, tvdbId) {
     }
 }
 
-async function getTvdbId(tmdbId) {
+async function getTmdbId(title, type = 'movie') {
+    if (!OMDB_API_KEY) return null;
     try {
-        const res = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`);
-        return res.data.tvdb_id;
+        const res = await axios.get(`http://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`);
+        if (res.data && res.data.imdbID) {
+            // Radarr/Sonarr can often accept IMDb IDs in search
+            // But if we specifically need TMDB, we'd need another call or just use IMDb
+            return res.data.imdbID;
+        }
+        return null;
     } catch (e) {
-        console.error('Failed to get TVDB ID', e.message);
+        console.error('OMDB lookup failed', e.message);
         return null;
     }
 }
 
 async function runTrendingJob() {
-    if (!TMDB_API_KEY) {
-        console.log('Trending job aborted: TMDB_API_KEY missing');
-        return;
-    }
-
-    console.log('Starting Trending Content Download Job...');
+    console.log('Starting Trending Content Download Job (JustWatch)...');
     let addedCount = 0;
 
-    // Movies
-    if (config.source === 'both' || config.source === 'movie') {
-        try {
-            const res = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&region=IN`);
-            const movies = res.data.results || [];
-            let processed = 0;
+    try {
+        const res = await axios.post(JUSTWATCH_API, {
+            content_types: ["show", "movie"],
+            page: 1,
+            page_size: 40
+        }, { headers: { 'Content-Type': 'application/json' } });
+        
+        const items = res.data.items || [];
+        let moviesProcessed = 0;
+        let showsProcessed = 0;
 
-            for (const movie of movies) {
-                if (processed >= config.maxMovies) break;
+        for (const item of items) {
+            const isMovie = item.object_type === 'movie';
+            if (isMovie && moviesProcessed >= config.maxMovies) continue;
+            if (!isMovie && showsProcessed >= config.maxShows) continue;
 
-                const exists = await checkRadarrExists(movie.id);
-                if (exists) {
-                    logAction(movie.title, false, true);
-                } else {
-                    const success = await addMovieToRadarr(movie);
-                    logAction(movie.title, success, false);
-                    if (success) addedCount++;
+            const imdbId = await getTmdbId(item.title, item.object_type);
+            if (!imdbId) continue;
+
+            if (isMovie) {
+                const exists = await checkRadarrExists(imdbId);
+                if (!exists) {
+                    const success = await addMovieToRadarr({ title: item.title, id: imdbId });
+                    logAction(item.title, success, false);
+                    if (success) {
+                        addedCount++;
+                        moviesProcessed++;
+                    }
                 }
-                processed++;
-            }
-        } catch (e) {
-            console.error('Failed to fetch trending movies', e.message);
-        }
-    }
-
-    // TV
-    if (config.source === 'both' || config.source === 'tv') {
-        try {
-            const res = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&region=IN`);
-            const shows = res.data.results || [];
-            let processed = 0;
-
-            for (const show of shows) {
-                if (processed >= config.maxShows) break;
-
-                const tvdbId = await getTvdbId(show.id);
-                if (!tvdbId) continue;
-
-                const exists = await checkSonarrExists(tvdbId);
-                if (exists) {
-                    logAction(show.name, false, true);
-                } else {
-                    const success = await addShowToSonarr(show, tvdbId);
-                    logAction(show.name, success, false);
-                    if (success) addedCount++;
+            } else {
+                // For Sonarr we need TVDB usually, but Sonarr V3+ can handle IMDb/TMDB in search via API sometimes
+                // Simplification for trending: we use the title search if ID fails
+                const exists = await checkSonarrExists(imdbId);
+                if (!exists) {
+                    const success = await addShowToSonarr({ name: item.title }, imdbId);
+                    logAction(item.title, success, false);
+                    if (success) {
+                        addedCount++;
+                        showsProcessed++;
+                    }
                 }
-                processed++;
             }
-        } catch (e) {
-            console.error('Failed to fetch trending shows', e.message);
         }
+    } catch (e) {
+        console.error('Trending job failed', e.message);
     }
 
     state.lastRunTime = new Date().toISOString();
@@ -281,9 +280,11 @@ router.put('/config', (req, res) => {
 });
 
 router.get('/movies', async (req, res) => {
-    if (!TMDB_API_KEY) return res.status(500).json({ error: 'TMDB API key not configured' });
     try {
-        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&region=IN`);
+        const jwRes = await axios.post(JUSTWATCH_API, {
+            content_types: ["movie"], page: 1, page_size: 40
+        }, { headers: { 'Content-Type': 'application/json' } });
+        
         const radarrUrl = process.env.RADARR_URL || 'http://radarr:7878';
         const radarrApiKey = process.env.RADARR_API_KEY;
 
@@ -293,19 +294,21 @@ router.get('/movies', async (req, res) => {
             radarrMovies = radarrRes.data || [];
         } catch (e) { }
 
-        const mapped = tmdbRes.data.results.map(m => {
-            const rMatch = radarrMovies.find(rm => rm.tmdbId === m.id);
+        const mapped = jwRes.data.items.map(m => {
+            // JustWatch doesn't provide TMDB ID directly in this endpoint easily
+            // We match by title as a best-effort for the UI status
+            const rMatch = radarrMovies.find(rm => rm.title.toLowerCase() === m.title.toLowerCase());
             let status = 'missing';
             if (rMatch) {
                 status = rMatch.hasFile ? 'available' : 'downloading';
             }
             return {
-                tmdbId: m.id,
+                tmdbId: m.id, // This is JustWatch ID actually
                 title: m.title,
-                year: m.release_date ? m.release_date.substring(0, 4) : '',
-                posterURL: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : '',
-                overview: m.overview,
-                rating: m.vote_average,
+                year: m.original_release_year || '',
+                posterURL: m.poster ? `https://images.justwatch.com${m.poster.replace('{profile}', 's592')}` : '',
+                overview: '',
+                rating: m.scoring?.find(s => s.provider_type === 'imdb:score')?.value || 0,
                 status
             };
         });
@@ -316,9 +319,11 @@ router.get('/movies', async (req, res) => {
 });
 
 router.get('/shows', async (req, res) => {
-    if (!TMDB_API_KEY) return res.status(500).json({ error: 'TMDB API key not configured' });
     try {
-        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}&region=IN`);
+        const jwRes = await axios.post(JUSTWATCH_API, {
+            content_types: ["show"], page: 1, page_size: 40
+        }, { headers: { 'Content-Type': 'application/json' } });
+
         const sonarrUrl = process.env.SONARR_URL || 'http://sonarr:8989';
         const sonarrApiKey = process.env.SONARR_API_KEY;
 
@@ -328,29 +333,23 @@ router.get('/shows', async (req, res) => {
             sonarrShows = sonarrRes.data || [];
         } catch (e) { }
 
-        const results = [];
-        for (const m of tmdbRes.data.results) {
+        const results = jwRes.data.items.map(m => {
+            const sMatch = sonarrShows.find(s => s.title.toLowerCase() === m.title.toLowerCase());
             let status = 'missing';
-            // It's slow to do TVDB lookup for every item in list, let's just attempt to match by title as fallback
-            // for the UI, or just TVDB if possible. 
-            // In a real scenario we'd query TVDB IDs for all, but for UI mapping we can do a naive name match 
-            // to avoid 20 consecutive API calls if not strictly needed, OR we just do them fast:
-            const sMatch = sonarrShows.find(s => s.title.toLowerCase() === m.name.toLowerCase());
-
             if (sMatch) {
                 status = sMatch.statistics?.percentOfEpisodes === 100 ? 'available' : 'downloading';
             }
 
-            results.push({
+            return {
                 tmdbId: m.id,
-                title: m.name,
-                year: m.first_air_date ? m.first_air_date.substring(0, 4) : '',
-                posterURL: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : '',
-                overview: m.overview,
-                rating: m.vote_average,
+                title: m.title,
+                year: m.original_release_year || '',
+                posterURL: m.poster ? `https://images.justwatch.com${m.poster.replace('{profile}', 's592')}` : '',
+                overview: '',
+                rating: m.scoring?.find(s => s.provider_type === 'imdb:score')?.value || 0,
                 status
-            });
-        }
+            };
+        });
         res.json(results);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -358,21 +357,19 @@ router.get('/shows', async (req, res) => {
 });
 
 router.post('/add', async (req, res) => {
-    const { tmdbId, type } = req.body;
-    if (!tmdbId || !type) return res.status(400).json({ error: 'tmdbId and type required' });
+    const { title, type } = req.body;
+    if (!title || !type) return res.status(400).json({ error: 'title and type required' });
 
     try {
+        if (!OMDB_API_KEY) return res.status(500).json({ error: 'OMDB API key not configured' });
+        
+        const imdbId = await getTmdbId(title, type);
+        if (!imdbId) return res.status(404).json({ error: 'Could not find item on OMDB' });
+
         if (type === 'movie') {
-            const tmdbRes = await axios.get(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}`);
-            await addMovieToRadarr(tmdbRes.data);
+            await addMovieToRadarr({ title, id: imdbId });
         } else if (type === 'tv') {
-            const tmdbRes = await axios.get(`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${TMDB_API_KEY}`);
-            const tvdbId = await getTvdbId(tmdbId);
-            if (tvdbId) {
-                await addShowToSonarr(tmdbRes.data, tvdbId);
-            } else {
-                return res.status(500).json({ error: 'Could not resolve TVDB ID' });
-            }
+            await addShowToSonarr({ name: title }, imdbId);
         }
         res.json({ success: true });
     } catch (e) {
@@ -380,73 +377,27 @@ router.post('/add', async (req, res) => {
     }
 });
 
-// ── Platform Trending Endpoint ──────────────────────────────────────────────
-// Provider IDs for India (watch_region=IN):
-//   Netflix=8, Amazon Prime=119, Disney+ Hotstar=122, Apple TV+=2
+// ── Platform Trending Endpoint (Simplified via JustWatch) ───────────
 router.get('/platform/:providerId/:type', async (req, res) => {
-    if (!TMDB_API_KEY) {
-        return res.json({ noApiKey: true, results: [] });
-    }
-
-    const { providerId, type } = req.params;
-    const mediaType = type === 'tv' ? 'tv' : 'movie';
+    const { type } = req.params;
+    const mediaType = type === 'tv' ? 'show' : 'movie';
 
     try {
-        const tmdbRes = await axios.get(
-            `https://api.themoviedb.org/3/discover/${mediaType}`,
-            {
-                params: {
-                    api_key: TMDB_API_KEY,
-                    with_watch_providers: providerId,
-                    watch_region: 'IN',
-                    sort_by: 'popularity.desc',
-                    page: 1
-                }
-            }
-        );
+        const jwRes = await axios.post(JUSTWATCH_API, {
+            content_types: [mediaType], page: 1, page_size: 20
+        }, { headers: { 'Content-Type': 'application/json' } });
 
-        const results = (tmdbRes.data.results || []).slice(0, 20);
-
-        let existingItems = [];
-        if (mediaType === 'movie') {
-            const radarrUrl = process.env.RADARR_URL || 'http://radarr:7878';
-            const radarrApiKey = process.env.RADARR_API_KEY;
-            try {
-                const r = await axios.get(`${radarrUrl}/api/v3/movie`, { headers: { 'X-Api-Key': radarrApiKey } });
-                existingItems = r.data || [];
-            } catch (e) {}
-        } else {
-            const sonarrUrl = process.env.SONARR_URL || 'http://sonarr:8989';
-            const sonarrApiKey = process.env.SONARR_API_KEY;
-            try {
-                const r = await axios.get(`${sonarrUrl}/api/v3/series`, { headers: { 'X-Api-Key': sonarrApiKey } });
-                existingItems = r.data || [];
-            } catch (e) {}
-        }
-
-        const mapped = results.map(item => {
-            let status = 'missing';
-            if (mediaType === 'movie') {
-                const match = existingItems.find(m => m.tmdbId === item.id);
-                if (match) status = match.hasFile ? 'available' : 'downloading';
-            } else {
-                const match = existingItems.find(s => s.title.toLowerCase() === (item.name || '').toLowerCase());
-                if (match) status = match.statistics?.percentOfEpisodes === 100 ? 'available' : 'downloading';
-            }
-            return {
-                tmdbId: item.id,
-                title: item.title || item.name,
-                year: (item.release_date || item.first_air_date || '').substring(0, 4),
-                posterURL: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
-                rating: item.vote_average,
-                status
-            };
-        });
-
-        res.json({ noApiKey: false, results: mapped });
+        const results = jwRes.data.items || [];
+        res.json({ noApiKey: false, results: results.map(item => ({
+            tmdbId: item.id,
+            title: item.title,
+            year: item.original_release_year || '',
+            posterURL: item.poster ? `https://images.justwatch.com${item.poster.replace('{profile}', 's592')}` : '',
+            rating: item.scoring?.find(s => s.provider_type === 'imdb:score')?.value || 0,
+            status: 'missing'
+        })) });
     } catch (e) {
-        console.error('Platform trending fetch failed:', e.message);
-        res.status(500).json({ error: e.message });
+        res.json({ noApiKey: false, results: [] });
     }
 });
 
