@@ -322,6 +322,7 @@ textarea {
     background: var(--gradient-glow);
     opacity: 0;
     transition: opacity var(--transition-normal);
+    pointer-events: none;
 }
 
 .service-card:hover::before {
