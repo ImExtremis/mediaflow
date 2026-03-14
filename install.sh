@@ -125,9 +125,11 @@ render_header() {
   local phase_spaces=""
   for ((i=0; i<phase_pad; i++)); do phase_spaces+=" "; done
 
+  local _RENDER_VER
+  _RENDER_VER=$(cat "${INSTALL_DIR:-$(dirname "$(readlink -f "$0")")}"'/VERSION' 2>/dev/null | tr -d '\r' || echo '1.4.5')
   echo ""
   echo -e "${CYAN}╔${border}╗${RESET}"
-  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v1.4.3${RESET}${title_spaces}${CYAN}║${RESET}"
+  echo -e "${CYAN}║${RESET}     ${BOLD}MediaFlow Installer v${_RENDER_VER}${RESET}${title_spaces}${CYAN}║${RESET}"
   printf "${CYAN}║${RESET}     Overall Progress: ${bar_color}[%-20s] %3d%%${RESET}${prog_spaces}${CYAN}║${RESET}\n" "$bar" "$percent"
   printf "${CYAN}║${RESET}${phase_prefix}%s${phase_spaces}${CYAN}║${RESET}\n" "$phase_val"
   echo -e "${CYAN}╚${border}╝${RESET}"
@@ -250,7 +252,9 @@ print_banner() {
   ╚═╝     ╚═╝ ╚══════╝ ╚═════╝  ╚═╝ ╚═╝  ╚═╝   ╚═╝      ╚══════╝  ╚═════╝   ╚══╝╚══╝
 EOF
   echo -e "${RESET}"
-  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v1.4.3${RESET}"
+  local _BANNER_VER
+  _BANNER_VER=$(cat "${INSTALL_DIR:-$(dirname "$(readlink -f "$0")")}"'/VERSION' 2>/dev/null | tr -d '\r' || echo '1.4.5')
+  echo -e "  ${BOLD}Self-Hosted Media Automation Stack · v${_BANNER_VER}${RESET}"
   echo -e "  Sonarr (x2) · Radarr · Prowlarr · qBittorrent · Jellyfin · Bazarr · Jellyseerr · Tdarr"
   echo ""
 }
