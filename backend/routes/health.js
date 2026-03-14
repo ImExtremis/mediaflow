@@ -55,13 +55,56 @@ async function getServiceHealth() {
     return results;
 }
 
+const { execSync } = require('child_process');
+
+async function getQbitPassword() {
+  // Try stored password first
+  const storedPass = process.env.QBIT_PASS || 'adminadmin';
+  
+  // If that fails, read from container logs
+  try {
+    const logs = execSync(
+      'docker logs mediaflow_qbittorrent 2>&1 | grep -i "temporary password" | tail -1',
+      { timeout: 5000 }
+    ).toString();
+    const match = logs.match(/temporary password[^:]*:\s*(\S+)/i);
+    if (match && match[1]) {
+      const newPass = match[1].trim();
+      // Update .env and process.env
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.join(__dirname, '../../.env');
+      try {
+        if (fs.existsSync(envPath)) {
+          let envContent = fs.readFileSync(envPath, 'utf8');
+          if (envContent.match(/^QBIT_PASS=.*/m)) {
+            envContent = envContent.replace(/^QBIT_PASS=.*/m, `QBIT_PASS=${newPass}`);
+          } else {
+            envContent += `\nQBIT_PASS=${newPass}`;
+          }
+          fs.writeFileSync(envPath, envContent);
+        }
+        process.env.QBIT_PASS = newPass;
+        console.log('[qBit] Auto-updated password from container logs');
+      } catch (e) {
+        console.error('[qBit] Failed to update .env with new password:', e.message);
+      }
+      return newPass;
+    }
+  } catch (e) {
+    // Silent fail if docker logs not available or grep fails
+  }
+  
+  return storedPass;
+}
+
 // Global Auth Header logic for qBittorrent
 let qbitCookie = null;
 async function getQbitAuth() {
     if (qbitCookie) return qbitCookie;
     try {
         const username = process.env.QBIT_USER || 'admin';
-        const password = process.env.QBIT_PASS || 'adminadmin';
+        const password = await getQbitPassword();
         const res = await axios.post(`${process.env.QBIT_URL || 'http://qbittorrent:8080'}/api/v2/auth/login`, 
             `username=${username}&password=${password}`,
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 3000 }
@@ -96,7 +139,10 @@ async function getQbitStats() {
             activeDownloads: active
         };
     } catch(err) {
-        if (err.response?.status === 403) qbitCookie = null; // Reset auth
+        if (err.response?.status === 403) {
+            qbitCookie = null; // Reset auth
+            // The next call to getQbitAuth() will trigger getQbitPassword() and retry
+        }
         return { downloadSpeed: 0, uploadSpeed: 0, activeDownloads: 0 };
     }
 }

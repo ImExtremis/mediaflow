@@ -970,9 +970,28 @@ get_qbit_password() {
   if [[ -n "$QBIT_PASS" && "$QBIT_PASS" != "Check: docker logs mediaflow_qbittorrent" ]]; then
     sed -i "s/^QBIT_PASS=.*/QBIT_PASS=${QBIT_PASS}/" "$INSTALL_DIR/.env" || \
     echo "QBIT_PASS=${QBIT_PASS}" >> "$INSTALL_DIR/.env"
+    
+    # Set the password as permanent via qBittorrent API so it does not regenerate on restart
+    (
+      sleep 2
+      local qbit_host="localhost"
+      local qbit_port=$(grep "^QBIT_PORT=" "$INSTALL_DIR/.env" | cut -d= -f2 || echo "8082")
+      
+      # Login to get session cookie
+      curl -s -c /tmp/qbit_cookies.txt \
+        --data "username=admin&password=${QBIT_PASS}" \
+        "http://${qbit_host}:${qbit_port}/api/v2/auth/login" >/dev/null || true
+      
+      # Set password as permanent
+      curl -s -b /tmp/qbit_cookies.txt \
+        --data "json={\"web_ui_password\":\"${QBIT_PASS}\"}" \
+        "http://${qbit_host}:${qbit_port}/api/v2/app/setPreferences" >/dev/null || true
+      
+      rm -f /tmp/qbit_cookies.txt
+    ) & disown || true
   fi
 
-  stop_spinner "Captured credentials" || true
+  stop_spinner "Captured credentials & configured permanent access" || true
 }
 
 # ─── Wait for Services ───────────────────────────────────────────────────────

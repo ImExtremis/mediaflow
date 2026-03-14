@@ -14,7 +14,7 @@ let updateCache = null;
 let updateCacheTime = 0;
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-const GITHUB_REPO = process.env.GITHUB_REPO || 'ImExtremis/mediaflow';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'ImExtremis/media-flow';
 const VERSION_FILE = path.join(__dirname, '../../../VERSION');
 const UPDATE_SCRIPT = path.join(__dirname, '../../../update.sh');
 
@@ -96,7 +96,12 @@ router.get('/check', async (req, res) => {
     } catch (err) {
         console.error("[Update API] Update check failed", err.message);
         if (err.response && err.response.status === 404) {
-            console.error("[Update API] Repository not found or no releases. Please ensure GITHUB_REPO is set correctly.");
+            return res.json({
+              updateAvailable: false,
+              currentVersion: fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf8').trim() : 'unknown',
+              latestVersion: fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf8').trim() : 'unknown',
+              message: 'No GitHub releases found. Create a release tag to enable update checks.'
+            });
         }
         res.json({ updateAvailable: false, currentVersion: fs.existsSync(VERSION_FILE) ? fs.readFileSync(VERSION_FILE, 'utf8').trim() : 'unknown', message: 'Update check failed' });
     }
