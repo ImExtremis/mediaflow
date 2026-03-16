@@ -33,6 +33,15 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    networks:
+      - mediaflow_net
+    environment:
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - sonarr_config:/config
+      - ./data:/data
     ports:
       - "${SONARR_PORT:-8989}:8989"
     healthcheck:
@@ -50,6 +59,15 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    networks:
+      - mediaflow_net
+    environment:
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - radarr_config:/config
+      - ./data:/data
     ports:
       - "${RADARR_PORT:-7878}:7878"
     healthcheck:
@@ -67,6 +85,15 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    networks:
+      - mediaflow_net
+    environment:
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - prowlarr_config:/config
+      - ./data:/data
     ports:
       - "${PROWLARR_PORT:-9696}:9696"
     healthcheck:
@@ -81,6 +108,9 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: mediaflow_qbittorrent
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - mediaflow_net
     environment:
@@ -111,6 +141,9 @@ services:
     image: lscr.io/linuxserver/jellyfin:latest
     container_name: mediaflow_jellyfin
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - mediaflow_net
     environment:
@@ -140,6 +173,15 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    networks:
+      - mediaflow_net
+    environment:
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - bazarr_config:/config
+      - ./data/media:/data/media
     ports:
       - "${BAZARR_PORT:-6767}:6767"
     healthcheck:
@@ -157,6 +199,15 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    networks:
+      - mediaflow_net
+    environment:
+      - PUID=${PUID:-999}
+      - PGID=${PGID:-987}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - sonarr_anime_config:/config
+      - ./data:/data
     ports:
       - "${SONARR_ANIME_PORT:-8990}:8989"
     healthcheck:
@@ -174,7 +225,6 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
-      - 1.1.1.1
     networks:
       - mediaflow_net
     environment:
@@ -221,22 +271,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-  # ── FlareSolverr (Proxy for Cloudflare Bypass) ───────────────
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: mediaflow_flaresolverr
-    restart: unless-stopped
-    environment:
-      - LOG_LEVEL=info
-      - TZ=${TZ:-Asia/Kolkata}
-    ports:
-      - "8191:8191"
-    networks:
-      - mediaflow_net
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-
   # ── YouTube DL (yt-dlp) ──────────────────────────────────────
   ytdlp:
     image: jauderho/yt-dlp:latest
@@ -247,6 +281,28 @@ services:
     entrypoint: [ "sleep", "infinity" ]
     volumes:
       - ./data/yt-downloads:/downloads
+
+  # ── FlareSolverr (Cloudflare bypass for indexers) ────────────
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: mediaflow_flaresolverr
+    restart: unless-stopped
+    networks:
+      - mediaflow_net
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "${FLARESOLVERR_PORT:-8191}:8191"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ── MediaFlow Backend API (Node.js / Express) ────────────────
   backend:
