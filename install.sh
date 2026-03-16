@@ -304,7 +304,7 @@ check_disk_space() {
 
 # ─── Port Conflict Detection ─────────────────────────────────────────────────
 check_ports() {
-  local ports=(8080 7878 8989 9696 8082 8096 3001)
+  local ports=(8080 7878 8989 9696 8082 8096 3001 8191)
   local conflict=false
   info "Checking for port conflicts..."
   for port in "${ports[@]}"; do
@@ -416,6 +416,13 @@ configure_docker() {
     DOCKER_CMD="sudo docker"
     warn "Using sudo for docker commands (group active after re-login)"
     success "Docker service configured"
+  fi
+
+  # Configure Docker DNS
+  if [[ ! -f /etc/docker/daemon.json ]]; then
+    echo '{"dns": ["8.8.8.8", "8.8.4.4", "1.1.1.1"]}' | sudo tee /etc/docker/daemon.json >/dev/null
+    sudo systemctl restart docker || true
+    info "Docker DNS configured to use Google DNS"
   fi
 }
 
@@ -1010,6 +1017,7 @@ wait_for_services() {
     "mediaflow_radarr" "mediaflow_sonarr" "mediaflow_qbittorrent"
     "mediaflow_jellyfin" "mediaflow_prowlarr" "mediaflow_bazarr"
     "mediaflow_jellyseerr" "mediaflow_tdarr" "mediaflow_sonarr_anime"
+    "mediaflow_flaresolverr"
   )
   local total=${#containers[@]}
   local timeout=$(( SECONDS + 180 ))
@@ -1141,6 +1149,7 @@ print_summary() {
     "  Bazarr         ->  http://$host_ip:$bazarr_port"
     "  Jellyseerr     ->  http://$host_ip:$jellyseerr_port"
     "  Tdarr          ->  http://$host_ip:$tdarr_port"
+    "  FlareSolverr   ->  http://$host_ip:8191"
     "  YouTube        ->  ./data/yt-downloads"
     "  qBittorrent credentials:"
     "  Username: admin"
@@ -1161,6 +1170,7 @@ print_summary() {
     "  Bazarr         →  http://$host_ip:$bazarr_port"
     "  Jellyseerr     →  http://$host_ip:$jellyseerr_port"
     "  Tdarr          →  http://$host_ip:$tdarr_port"
+    "  FlareSolverr   →  http://$host_ip:8191"
     "  YouTube        →  ./data/yt-downloads"
     "  qBittorrent credentials:"
     "  Username: admin"
@@ -1214,13 +1224,14 @@ print_summary() {
   print_line "${measure_lines[9]}" "Bazarr         →  ${CYAN}http://$host_ip:$bazarr_port${RESET}"
   print_line "${measure_lines[10]}" "Jellyseerr     →  ${CYAN}http://$host_ip:$jellyseerr_port${RESET}"
   print_line "${measure_lines[11]}" "Tdarr          →  ${CYAN}http://$host_ip:$tdarr_port${RESET}"
-  print_line "${measure_lines[12]}" "YouTube        →  ${CYAN}./data/yt-downloads${RESET}"
+  print_line "${measure_lines[12]}" "FlareSolverr   →  ${CYAN}http://$host_ip:8191${RESET}"
+  print_line "${measure_lines[13]}" "YouTube        →  ${CYAN}./data/yt-downloads${RESET}"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
-  print_line "${measure_lines[13]}" "${BOLD}qBittorrent credentials:${RESET}"
-  print_line "${measure_lines[14]}" "Username: ${YELLOW}admin${RESET}"
-  print_line "${measure_lines[15]}" "Password: ${RED}${QBIT_PASS:0:42}${RESET}"
+  print_line "${measure_lines[14]}" "${BOLD}qBittorrent credentials:${RESET}"
+  print_line "${measure_lines[15]}" "Username: ${YELLOW}admin${RESET}"
+  print_line "${measure_lines[16]}" "Password: ${RED}${QBIT_PASS:0:42}${RESET}"
   echo -e "${GREEN}╠${div_border}╣${RESET}"
-  print_line "${measure_lines[16]}" "${YELLOW}⚠  Change default passwords after first login${RESET}"
+  print_line "${measure_lines[17]}" "${YELLOW}⚠  Change default passwords after first login${RESET}"
   echo -e "${GREEN}╚${bot_border}╝${RESET}"
   echo ""
 }
@@ -1289,6 +1300,32 @@ main() {
   pull_images
   build_images
   deploy_stack
+  
+  # Install MediaFlow startup service
+  STARTUP_SERVICE="/etc/systemd/system/mediaflow-startup.service"
+  sudo tee "$STARTUP_SERVICE" > /dev/null << EOF
+[Unit]
+Description=MediaFlow Startup Service
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash ${INSTALL_DIR}/scripts/startup.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+User=$(whoami)
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable mediaflow-startup.service
+  success "MediaFlow startup service installed — will auto-start on boot"
+
   wait_for_services
   get_qbit_password
   automate_configurations

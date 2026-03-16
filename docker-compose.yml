@@ -30,15 +30,9 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: mediaflow_sonarr
     restart: unless-stopped
-    networks:
-      - mediaflow_net
-    environment:
-      - PUID=${PUID:-999}
-      - PGID=${PGID:-987}
-      - TZ=${TZ:-UTC}
-    volumes:
-      - sonarr_config:/config
-      - ./data:/data
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "${SONARR_PORT:-8989}:8989"
     healthcheck:
@@ -53,15 +47,9 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: mediaflow_radarr
     restart: unless-stopped
-    networks:
-      - mediaflow_net
-    environment:
-      - PUID=${PUID:-999}
-      - PGID=${PGID:-987}
-      - TZ=${TZ:-UTC}
-    volumes:
-      - radarr_config:/config
-      - ./data:/data
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "${RADARR_PORT:-7878}:7878"
     healthcheck:
@@ -76,15 +64,9 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: mediaflow_prowlarr
     restart: unless-stopped
-    networks:
-      - mediaflow_net
-    environment:
-      - PUID=${PUID:-999}
-      - PGID=${PGID:-987}
-      - TZ=${TZ:-UTC}
-    volumes:
-      - prowlarr_config:/config
-      - ./data:/data
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "${PROWLARR_PORT:-9696}:9696"
     healthcheck:
@@ -155,15 +137,9 @@ services:
     image: lscr.io/linuxserver/bazarr:latest
     container_name: mediaflow_bazarr
     restart: unless-stopped
-    networks:
-      - mediaflow_net
-    environment:
-      - PUID=${PUID:-999}
-      - PGID=${PGID:-987}
-      - TZ=${TZ:-UTC}
-    volumes:
-      - bazarr_config:/config
-      - ./data/media:/data/media
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "${BAZARR_PORT:-6767}:6767"
     healthcheck:
@@ -178,15 +154,9 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: mediaflow_sonarr_anime
     restart: unless-stopped
-    networks:
-      - mediaflow_net
-    environment:
-      - PUID=${PUID:-999}
-      - PGID=${PGID:-987}
-      - TZ=${TZ:-UTC}
-    volumes:
-      - sonarr_anime_config:/config
-      - ./data:/data
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "${SONARR_ANIME_PORT:-8990}:8989"
     healthcheck:
@@ -201,12 +171,17 @@ services:
     image: fallenbagel/jellyseerr:latest
     container_name: mediaflow_jellyseerr
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     networks:
       - mediaflow_net
     environment:
       - PUID=${PUID:-999}
       - PGID=${PGID:-987}
       - TZ=${TZ:-UTC}
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
     volumes:
       - jellyseerr_config:/app/config
     ports:
@@ -246,6 +221,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+  # ── FlareSolverr (Proxy for Cloudflare Bypass) ───────────────
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: mediaflow_flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "8191:8191"
+    networks:
+      - mediaflow_net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
   # ── YouTube DL (yt-dlp) ──────────────────────────────────────
   ytdlp:
     image: jauderho/yt-dlp:latest
@@ -264,6 +255,9 @@ services:
       dockerfile: backend/Dockerfile
     container_name: mediaflow_backend
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - mediaflow_net
     environment:

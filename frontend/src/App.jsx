@@ -149,7 +149,20 @@ function Sidebar({ isOpen }) {
 
     return (
         <aside className={`sidebar${isOpen ? ' open' : ''}`}>
-            <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px 0 0' }}>
+            <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                height: '64px',
+                boxSizing: 'border-box'
+            }}>
+                <img src="/logo.png" style={{ width: '32px', height: '32px', borderRadius: '8px' }} alt="MediaFlow" />
+                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>MediaFlow</span>
+            </div>
+
+            <div className="sidebar-logo" style={{ display: 'none' }}>
                 <img
                     src="/logo.png"
                     alt="MediaFlow"

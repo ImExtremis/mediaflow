@@ -15,7 +15,8 @@ const SERVICES_META = {
     jellyfin:       { label: 'Jellyfin',      icon: '🎞️', color: '#00a4dc', port: '8096' },
     bazarr:         { label: 'Bazarr',        icon: '📝', color: '#ec4899', port: '6767' },
     jellyseerr:     { label: 'Jellyseerr',    icon: '🎉', color: '#14b8a6', port: '5055' },
-    tdarr:          { label: 'Tdarr',         icon: '🔄', color: '#a855f7', port: '8265' }
+    tdarr:          { label: 'Tdarr',         icon: '🔄', color: '#a855f7', port: '8265' },
+    flaresolverr:   { label: 'FlareSolverr', icon: '🛡️', color: '#f59e0b', port: '8191' }
 };
 
 function formatBytes(bytes, decimals = 2) {
