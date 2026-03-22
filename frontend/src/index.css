@@ -958,6 +958,14 @@ tbody tr:hover td {
     z-index: 90;
 }
 
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+}
+
 .navbar-logo h1 {
     font-size: 1.25rem;
     font-weight: 800;

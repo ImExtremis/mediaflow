@@ -40,6 +40,16 @@ export default function Navbar({ onHamburger }) {
                 <span></span>
             </button>
             <div className="navbar-logo">
+                <img 
+                    src="/logo.png" 
+                    alt="MediaFlow" 
+                    style={{ 
+                        width: '32px', 
+                        height: '32px', 
+                        borderRadius: '8px',
+                        objectFit: 'contain'
+                    }} 
+                />
                 <h1>MediaFlow</h1>
             </div>
 
