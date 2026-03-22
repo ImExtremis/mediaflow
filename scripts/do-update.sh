@@ -26,6 +26,10 @@ mkdir -p "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs"
 chmod 775 "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
 chown "$(whoami):$(whoami)" "$SCRIPT_DIR/state" "$SCRIPT_DIR/backups" "$SCRIPT_DIR/logs" 2>/dev/null || true
 
+# Fix 5 — Git identity on server
+git config --global user.email "167744490+ImExtremis@users.noreply.github.com" 2>/dev/null || true
+git config --global user.name "ImExtremis" 2>/dev/null || true
+
 # --skip-pull is accepted but effectively a no-op here; pull was done by update.sh
 SKIP_PULL=false
 if [[ "${1:-}" == "--skip-pull" ]]; then
@@ -141,6 +145,8 @@ success "Pre-flight checks passed."
 # STEP 2: Backup
 # -----------------------------------------------------------------------------
 info "Step 2: Creating backup..."
+chown -R $(whoami):$(whoami) "$SCRIPT_DIR/backups" 2>/dev/null || true
+chmod -R 775 "$SCRIPT_DIR/backups" 2>/dev/null || true
 BACKUP_DIR="${SCRIPT_DIR}/backups/pre-update-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 cp -f docker-compose.yml VERSION .env "$BACKUP_DIR/" 2>/dev/null || true

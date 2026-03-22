@@ -600,6 +600,11 @@ setup_permissions() {
   sudo mkdir -p "$INSTALL_DIR/state"
   sudo chown -R "$(whoami):$(whoami)" "$INSTALL_DIR/state"
   sudo chmod -R 775 "$INSTALL_DIR/state"
+
+  # Ensure backups directory is always writable by the install user
+  sudo mkdir -p "$INSTALL_DIR/backups"
+  sudo chown -R "$(whoami):$(whoami)" "$INSTALL_DIR/backups"
+  sudo chmod -R 775 "$INSTALL_DIR/backups"
   
   if [[ -f "$INSTALL_DIR/config/qBittorrent.conf" ]]; then
     sudo cp "$INSTALL_DIR/config/qBittorrent.conf" "$INSTALL_DIR/appdata/qbittorrent/qBittorrent/qBittorrent.conf"
