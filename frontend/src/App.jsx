@@ -37,16 +37,12 @@ const NAV = [
     },
     {
         group: 'Content', items: [
-            { to: '/content', icon: '🎭', label: 'Content Preferences', color: '#6366f1' },
-            { to: '/quality', icon: '✨', label: 'Quality Profiles', color: '#6366f1' },
-            { to: '/ratings', icon: '🏷️', label: 'Rating Filters', color: '#6366f1' },
+            { to: '/indexers', icon: '🔍', label: 'Indexers', color: '#f97316' },
         ]
     },
     {
         group: 'Media', items: [
-            { to: '/storage', icon: '💾', label: 'Storage Paths', color: '#6366f1' },
             { to: '/speed', icon: '⚡', label: 'Speed Limits', color: '#6366f1' },
-            { to: '/languages', icon: '🌐', label: 'Languages', color: '#6366f1' },
             { to: '/indexers', icon: '🔍', label: 'Indexers', color: '#f97316' },
         ]
     },
@@ -149,40 +145,6 @@ function Sidebar({ isOpen }) {
 
     return (
         <aside className={`sidebar${isOpen ? ' open' : ''}`}>
-            <div style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid var(--color-border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                height: '64px',
-                boxSizing: 'border-box'
-            }}>
-                <img src="/logo.png" style={{ width: '32px', height: '32px', borderRadius: '8px' }} alt="MediaFlow" />
-                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>MediaFlow</span>
-            </div>
-
-            <div className="sidebar-logo" style={{ display: 'none' }}>
-                <img
-                    src="/logo.png"
-                    alt="MediaFlow"
-                    style={{
-                        width: '40px', height: '40px', borderRadius: '10px', objectFit: 'contain',
-                        filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.6))'
-                    }}
-                />
-                <div>
-                    <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', letterSpacing: '0.02em' }}>
-                        Media<span style={{
-                            background: 'linear-gradient(to right, #a78bfa, #fb923c)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text'
-                        }}>Flow</span>
-                    </h1>
-                    <p style={{ margin: 0, fontSize: '0.75rem' }}>Dashboard</p>
-                </div>
-            </div>
 
             <nav className="sidebar-nav" style={{ paddingTop: '20px' }}>
                 {filteredNav.map((group) => (
@@ -251,12 +213,7 @@ export default function App() {
                             <main className="main-content">
                                 <Routes>
                                     <Route path="/" element={<ProtectedRoute allowedRoles={['admin', 'requester']}><Dashboard /></ProtectedRoute>} />
-                                    <Route path="/content" element={<ProtectedRoute allowedRoles={['admin']}><ContentPrefs /></ProtectedRoute>} />
-                                    <Route path="/quality" element={<ProtectedRoute allowedRoles={['admin']}><QualityProfiles /></ProtectedRoute>} />
-                                    <Route path="/ratings" element={<ProtectedRoute allowedRoles={['admin']}><RatingFilters /></ProtectedRoute>} />
-                                    <Route path="/storage" element={<ProtectedRoute allowedRoles={['admin']}><StoragePaths /></ProtectedRoute>} />
                                     <Route path="/speed" element={<ProtectedRoute allowedRoles={['admin']}><SpeedLimits /></ProtectedRoute>} />
-                                    <Route path="/languages" element={<ProtectedRoute allowedRoles={['admin']}><Languages /></ProtectedRoute>} />
                                     <Route path="/indexers" element={<ProtectedRoute allowedRoles={['admin']}><Indexers /></ProtectedRoute>} />
                                     <Route path="/watch" element={<ProtectedRoute allowedRoles={['admin', 'requester', 'viewer']}><Watch /></ProtectedRoute>} />
                                     <Route path="/requests" element={<ProtectedRoute allowedRoles={['admin', 'requester']}><Requests /></ProtectedRoute>} />

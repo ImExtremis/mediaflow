@@ -247,6 +247,8 @@ services:
   tdarr:
     image: haveagitgat/tdarr:latest
     container_name: mediaflow_tdarr
+    profiles:
+      - optional
     restart: unless-stopped
     networks:
       - mediaflow_net
@@ -340,6 +342,7 @@ services:
       - GITHUB_REPO=${GITHUB_REPO:-ImExtremis/mediaflow}
       - CONFIG_PATH=/app/config/config.json
       - STATE_DIR=/app/state
+      - FLARESOLVERR_URL=http://flaresolverr:8191
     volumes:
       - ./config:/app/config
       - ./state:/app/state

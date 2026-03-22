@@ -859,16 +859,23 @@ deploy_stack() {
 
   local compose_cmd="${DOCKER_CMD:-docker} compose"
   
-  # Always start all services (sonarr-anime, tdarr, bazarr always enabled)
-  local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
+  # Always start all services (sonarr-anime, etc.) but Tdarr is now optional
+  local core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime bazarr flaresolverr"
   
   stop_spinner >/dev/null 2>&1 || true
   echo "[INFO] Starting MediaFlow stack..."
   
   # Intentionally unquoted $core_services to allow word splitting of service names
   ${compose_cmd} up -d --remove-orphans $core_services > /tmp/mediaflow_deploy.log 2>&1
-  local DEPLOY_EXIT
-  DEPLOY_EXIT=$?
+  local DEPLOY_EXIT=$?
+
+  # Optional Tdarr
+  read -rp "Install Tdarr transcoding service? (y/N): " install_tdarr
+  if [[ "${install_tdarr,,}" == "y" ]]; then
+    info "Starting Tdarr..."
+    ${compose_cmd} --profile optional up -d tdarr >> /tmp/mediaflow_deploy.log 2>&1
+    success "Tdarr started"
+  fi
   
   if [[ $DEPLOY_EXIT -eq 0 ]]; then
     success "All containers started"
@@ -1016,9 +1023,14 @@ wait_for_services() {
   local containers=(
     "mediaflow_radarr" "mediaflow_sonarr" "mediaflow_qbittorrent"
     "mediaflow_jellyfin" "mediaflow_prowlarr" "mediaflow_bazarr"
-    "mediaflow_jellyseerr" "mediaflow_tdarr" "mediaflow_sonarr_anime"
+    "mediaflow_jellyseerr" "mediaflow_sonarr_anime"
     "mediaflow_flaresolverr"
   )
+
+  # Only check Tdarr if it was requested
+  if [[ "${install_tdarr,,}" == "y" ]]; then
+    containers+=("mediaflow_tdarr")
+  fi
   local total=${#containers[@]}
   local timeout=$(( SECONDS + 180 ))
   local last_print=0
@@ -1028,7 +1040,12 @@ wait_for_services() {
 
     for container in "${containers[@]}"; do
       local health
-      health=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "")
+      if [[ "$container" == *"flaresolverr"* ]]; then
+        health=$(curl -sf "http://localhost:8191/v1" 2>/dev/null && echo "healthy" || echo "")
+      else
+        health=$(${DOCKER_CMD:-docker} inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "")
+      fi
+
       if [[ "$health" == "healthy" ]]; then
         ((healthy_count++)) || true
       elif [[ -z "$health" ]] || [[ "$health" == "<no value>" ]]; then
@@ -1148,7 +1165,7 @@ print_summary() {
     "  Jellyfin       ->  http://$host_ip:$jellyfin_port"
     "  Bazarr         ->  http://$host_ip:$bazarr_port"
     "  Jellyseerr     ->  http://$host_ip:$jellyseerr_port"
-    "  Tdarr          ->  http://$host_ip:$tdarr_port"
+    "  Tdarr (opt)    ->  http://$host_ip:$tdarr_port"
     "  FlareSolverr   ->  http://$host_ip:8191"
     "  YouTube        ->  ./data/yt-downloads"
     "  qBittorrent credentials:"
@@ -1169,7 +1186,7 @@ print_summary() {
     "  Jellyfin       →  http://$host_ip:$jellyfin_port"
     "  Bazarr         →  http://$host_ip:$bazarr_port"
     "  Jellyseerr     →  http://$host_ip:$jellyseerr_port"
-    "  Tdarr          →  http://$host_ip:$tdarr_port"
+    "  Tdarr (opt)    →  http://$host_ip:$tdarr_port"
     "  FlareSolverr   →  http://$host_ip:8191"
     "  YouTube        →  ./data/yt-downloads"
     "  qBittorrent credentials:"

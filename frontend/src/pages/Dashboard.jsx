@@ -92,8 +92,8 @@ export default function Dashboard() {
             </div>
 
             {/* Speeds and Queues */}
-            <div className="card-grid">
-                <div className="card" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
+                <div className="card" style={{ padding: '20px', flex: 1 }}>
                     <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>📈 Network & Downloads</h3>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ color: '#10b981' }}>⬇ {formatBytes(torrentStats?.downloadSpeed || 0)}/s</span>
@@ -109,7 +109,7 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                <div className="card" style={{ padding: '20px', minHeight: '120px' }}>
+                <div className="card" style={{ padding: '20px', minHeight: '120px', flex: 1 }}>
                     <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>⏳ Processing Queues</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>

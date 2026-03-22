@@ -17,7 +17,8 @@ const SERVICES = [
     { id: 'jellyfin', name: 'Jellyfin', url: process.env.JELLYFIN_URL || 'http://jellyfin:8096', pingPath: '/health' },
     { id: 'bazarr', name: 'Bazarr', url: process.env.BAZARR_URL || 'http://bazarr:6767', pingPath: '/ping' },
     { id: 'jellyseerr', name: 'Jellyseerr', url: process.env.JELLYSEERR_URL || 'http://jellyseerr:5055', pingPath: '/api/v1/status' },
-    { id: 'tdarr', name: 'Tdarr', url: process.env.TDARR_URL || 'http://tdarr:8265', pingPath: '/' }
+    { id: 'tdarr', name: 'Tdarr', url: process.env.TDARR_URL || 'http://tdarr:8265', pingPath: '/' },
+    { id: 'flaresolverr', name: 'FlareSolverr', url: process.env.FLARESOLVERR_URL || 'http://flaresolverr:8191', pingPath: '/v1' }
 ];
 
 async function getDiskSpace() {
