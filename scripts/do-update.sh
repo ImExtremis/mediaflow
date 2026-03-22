@@ -12,6 +12,7 @@ cd "$SCRIPT_DIR"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
+CURRENT_VERSION=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")
 
 info()    { echo -e "${CYAN}[INFO]${RESET}  $*"; }
 success() { echo -e "${GREEN}[OK]${RESET}    $*"; }
@@ -38,7 +39,7 @@ OLD_VERSION=$(cat VERSION 2>/dev/null || echo "unknown")
 BACKUP_DIR=""
 
 echo ""
-echo -e "${BOLD}${CYAN}MediaFlow Updater${RESET}"
+echo -e "${BOLD}${CYAN}MediaFlow Updater v$CURRENT_VERSION${RESET}"
 echo ""
 
 # Function to record update history
@@ -231,8 +232,8 @@ success "Frontend and backend rebuilt successfully."
 # -----------------------------------------------------------------------------
 info "Step 10: Starting containers..."
 
-# Always start all services (sonarr-anime, tdarr, bazarr always enabled)
-core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime tdarr bazarr"
+# Always start all services (sonarr-anime, etc.) but Tdarr is now optional
+core_services="radarr sonarr prowlarr qbittorrent jellyfin jellyseerr ytdlp backend frontend sonarr-anime bazarr flaresolverr"
 
 docker compose up -d --remove-orphans $core_services > /tmp/mediaflow_start.log 2>&1
 DEPLOY_EXIT=$?
@@ -265,6 +266,11 @@ while (( health_retries-- > 0 )); do
     python3 -c "import sys,json; data=[json.loads(l) for l in sys.stdin if l.strip()]; print(len([c for c in data if c.get('State')=='running']))" 2>/dev/null || echo "0")
   total=$(docker compose ps --format json 2>/dev/null | \
     python3 -c "import sys,json; data=[json.loads(l) for l in sys.stdin if l.strip()]; print(len(data))" 2>/dev/null || echo "0")
+  
+  # Ensure FlareSolverr is included in the check explicitly if it fails general health
+  if [[ "$unhealthy" == *"flaresolverr"* ]]; then
+    all_healthy=false
+  fi
   printf "\r  Containers running: %s/%s — retries left: %2d  " "$running" "$total" "$health_retries"
   if [[ -z "$unhealthy" ]] && [[ "$running" == "$total" ]] && [[ "$total" -gt 0 ]]; then
     all_healthy=true
@@ -350,7 +356,7 @@ done <<< "$containers"
 
 echo ""
 echo -e "${BOLD}Rebuilt Images:${RESET}"
-docker images mediaflow-frontend mediaflow-backend --format "  {{.Repository}}:{{.Tag}} — {{.ID}} — built {{.CreatedSince}}" || true
+docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep mediaflow || true
 
 echo ""
 echo -e "${GREEN}All data paths verified writable.${RESET}"
@@ -360,7 +366,7 @@ record_history "success" "$NEW_VERSION"
 echo ""
 echo "╔════════════════════════════════════════════════╗"
 echo "║  ✅  MediaFlow updated successfully!           ║"
-echo "║  Version: $(cat $SCRIPT_DIR/VERSION 2>/dev/null || echo 'unknown')                              ║"
+echo "║  Version: $CURRENT_VERSION                              ║"
 echo "║  Dashboard: http://$(grep SERVER_IP $SCRIPT_DIR/.env 2>/dev/null | cut -d= -f2 || echo 'localhost'):8080  ║"
 echo "╚════════════════════════════════════════════════╝"
 echo ""

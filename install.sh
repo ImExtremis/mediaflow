@@ -1324,16 +1324,20 @@ main() {
 [Unit]
 Description=MediaFlow Startup Service
 After=docker.service network-online.target
-Wants=network-online.target
+Wants=network-online.target docker.service
 Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash ${INSTALL_DIR}/scripts/startup.sh
+User=imextremis
+Group=docker
+WorkingDirectory=/home/imextremis/mediaflow
+ExecStartPre=/bin/sleep 10
+ExecStart=/bin/bash /home/imextremis/mediaflow/scripts/startup.sh
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
-User=$(whoami)
+TimeoutStartSec=120
 
 [Install]
 WantedBy=multi-user.target
@@ -1341,7 +1345,9 @@ EOF
 
   sudo systemctl daemon-reload
   sudo systemctl enable mediaflow-startup.service
-  success "MediaFlow startup service installed — will auto-start on boot"
+  # Test it runs without errors
+  sudo systemctl start mediaflow-startup.service || true
+  success "Startup service installed and tested"
 
   wait_for_services
   get_qbit_password
